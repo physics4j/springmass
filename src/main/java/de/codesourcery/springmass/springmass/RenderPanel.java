@@ -279,7 +279,7 @@ public final class RenderPanel extends Canvas {
 				}
 
 				// render springs
-				if ( parameters.isRenderSprings() ) 
+				if ( parameters.isRenderSprings() || parameters.isRenderAllSprings() ) 
 				{
 					long time = -System.currentTimeMillis();	
 					g.setColor(Color.GREEN);

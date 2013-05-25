@@ -41,7 +41,7 @@ public class Main extends Frame {
 
 	public static void main(String[] args) 
 	{
-		new Main(new SimulationParameters());
+		new Main(new SimulationParamsBuilder().build() );
 	}
 
 	public Main(SimulationParameters parameters) 

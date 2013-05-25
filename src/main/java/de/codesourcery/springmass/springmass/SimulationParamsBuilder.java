@@ -192,11 +192,11 @@ public class SimulationParamsBuilder {
 		springDampening=0.1;
 		springCoefficient=0.1;	
 
-		renderAllSprings = false;
+		renderAllSprings = true;
 
-		renderSprings = false;
+		renderSprings = true;
 
-		renderMasses = false;
+		renderMasses = true;
 		
 		particleMass = 1.0;
 
@@ -211,8 +211,8 @@ public class SimulationParamsBuilder {
 
 		gravity = 9.81;
 
-		gridColumnCount = 33;
-		gridRowCount = 33;
+		gridColumnCount = 13;
+		gridRowCount = 13;
 
 		maxParticleSpeed = 20;
 		forkJoinBatchSize = 1000;		
