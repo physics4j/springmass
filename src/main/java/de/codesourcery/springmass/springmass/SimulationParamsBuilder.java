@@ -207,7 +207,6 @@ public class SimulationParamsBuilder {
 
 		lightSurfaces = true;
 		
-		lightPosition = new Vector4(xResolution / 3.5, yResolution / 2.5, -200);
 		lightColor = new Color(50, 50, 200);
 
 		gravity = 9.81;
@@ -217,6 +216,8 @@ public class SimulationParamsBuilder {
 
 		maxParticleSpeed = 20;
 		forkJoinBatchSize = 1000;		
+		
+		updateLightPosition();
 	}
 	
 	public static void main(String[] args) {
@@ -450,7 +451,7 @@ public class SimulationParamsBuilder {
 	
 	private void updateLightPosition() 
 	{
-		lightPosition = new Vector4(xResolution / 3.5, yResolution / 2.5, -200);		
+		lightPosition = new Vector4(xResolution / 2 , yResolution / 2.5, -200);		
 	}
 
 	public void setResolution(int xResolution,int yResolution) 

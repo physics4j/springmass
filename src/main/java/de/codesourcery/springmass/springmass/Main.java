@@ -90,6 +90,15 @@ public class Main extends Frame {
 		controlFrame.setLocation( new Point( getLocation().x + getSize().width , getLocation().y ) );
 		controlFrame.setVisible( true );
 		
+		// sleep some time to avoid a NPE
+		// when the Simulation thread triggers a UI refresh
+		// while the rendering panel's buffer strategy has not yet been
+		// because it's not visible yet
+		try {
+			Thread.sleep(250);
+		} catch (InterruptedException e1) {
+		}
+		
 		synchronized(SIMULATOR_LOCK) 
 		{
 			this.simulator.start();
