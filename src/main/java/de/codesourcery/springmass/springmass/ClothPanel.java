@@ -29,62 +29,43 @@ import java.util.List;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
+import static de.codesourcery.springmass.springmass.SimulationParameters.*;
 import de.codesourcery.springmass.math.Vector4;
 
 public class ClothPanel extends JFrame {
 
-	private static final int X_RESOLUTION = 1000;
-	private static final int Y_RESOLUTION = 1000;
-
-	public static final int DELAY_MILLIS = 20;
-	
-	public static final boolean RENDER_ALL_LINES = false;
-	
-	public static final boolean RENDER_SPRINGS = false;
-	
-	public static final boolean RENDER_MASSES = false;
-	
-	private static final double MOUSE_DRAG_ZDEPTH = -100;	
-	
-	public static final double VERTICAL_RESTLENGTH_FACTOR = 1;
-	public static final double HORIZONTAL_RESTLENGTH_FACTOR = 1;
-	
-	public static final boolean LIGHING = true;
-	public static final Vector4 LIGHT_POS = new Vector4( X_RESOLUTION/3.5 , Y_RESOLUTION/2.5 , -200 );
-	public static final Vector4 LIGHT_COLOR = new Vector4(.2,.2,0.8);
-
-	public static final int COLUMNS = 633;	
-	public static final int ROWS = 33;
-
 	private final SimulationThread simulationThread;
 	private final RenderPanel renderPanel;
-
+	private final SimulationParameters parameters;
+	
 	public static void main(String[] args) 
 	{
-		new ClothPanel();
+		new ClothPanel(new SimulationParameters());
 	}
 
-	public ClothPanel() 
+	public ClothPanel(SimulationParameters parameters) 
 	{
+		this.parameters = parameters;
+		
 		// setup mass system
 		final SpringMassSystem system = new SpringMassSystem();
 
-		System.out.println("Point masses: "+(ROWS*COLUMNS));
+		System.out.println("Point masses: "+(parameters.getGridrows()*parameters.getGridcolumns()));
 		
-		final Mass[][] masses = new Mass[COLUMNS][];
-		for ( int i = 0 ; i < COLUMNS ; i++ ) {
-			masses[i] = new Mass[ROWS];
+		final Mass[][] masses = new Mass[parameters.getGridcolumns()][];
+		for ( int i = 0 ; i < parameters.getGridcolumns() ; i++ ) {
+			masses[i] = new Mass[parameters.getGridrows()];
 		}
 
-		double scaleX = X_RESOLUTION / (COLUMNS+COLUMNS*0.5);
-		double scaleY = Y_RESOLUTION / (ROWS+ROWS*0.5);
+		double scaleX = parameters.getXresolution() / (parameters.getGridcolumns()+parameters.getGridcolumns()*0.5);
+		double scaleY = parameters.getYresolution() / (parameters.getGridrows()+parameters.getGridrows()*0.5);
 		
 		final double xOffset = scaleX;
 		final double yOffset = scaleY;
 		
-		for ( int x = 0 ; x < COLUMNS ; x++ ) 
+		for ( int x = 0 ; x < parameters.getGridcolumns() ; x++ ) 
 		{
-			for ( int y = 0 ; y < ROWS ; y++ ) 
+			for ( int y = 0 ; y < parameters.getGridrows() ; y++ ) 
 			{
 				final Vector4 pos = new Vector4( xOffset + scaleX*x , yOffset + scaleY*y,0);
 				final Mass m = new Mass( Color.red  , pos );
@@ -97,20 +78,20 @@ public class ClothPanel extends JFrame {
 		}
 
 		// connect masses horizontally
-		final double horizRestLength = scaleX*HORIZONTAL_RESTLENGTH_FACTOR;
-		for ( int y = 0 ; y < ROWS ; y++ ) 
+		final double horizRestLength = scaleX*parameters.getHorizontalrestlengthfactor();
+		for ( int y = 0 ; y < parameters.getGridrows() ; y++ ) 
 		{
-			for ( int x = 0 ; x < (COLUMNS-1) ; x++ ) 
+			for ( int x = 0 ; x < (parameters.getGridcolumns()-1) ; x++ ) 
 			{
 				system.addSpring( new Spring( masses[x][y] , masses[x+1][y] , horizRestLength , true ) );
 			}
 		}
 
 		// connect masses vertically
-		final double verticalRestLength = scaleY*VERTICAL_RESTLENGTH_FACTOR;
-		for ( int x = 0 ; x < COLUMNS ; x++ ) 
+		final double verticalRestLength = scaleY*parameters.getVerticalrestlengthfactor();
+		for ( int x = 0 ; x < parameters.getGridcolumns() ; x++ ) 
 		{
-			for ( int y = 0 ; y < (ROWS-1) ; y++ ) 
+			for ( int y = 0 ; y < (parameters.getGridrows()-1) ; y++ ) 
 			{
 				system.addSpring( new Spring( masses[x][y] , masses[x][y+1] , verticalRestLength , true ) );
 			}
@@ -118,30 +99,30 @@ public class ClothPanel extends JFrame {
 
 		// cross-connect masses
 		final double crossConnectRestLength = Math.sqrt( horizRestLength*horizRestLength + verticalRestLength*verticalRestLength);
-		for ( int x = 0 ; x < (COLUMNS-1) ; x++ ) 
+		for ( int x = 0 ; x < (parameters.getGridcolumns()-1) ; x++ ) 
 		{
-			for ( int y = 0 ; y < (ROWS-1) ; y++ ) 
+			for ( int y = 0 ; y < (parameters.getGridrows()-1) ; y++ ) 
 			{
-				system.addSpring( new Spring( masses[x][y] , masses[x+1][y+1] , crossConnectRestLength , RENDER_ALL_LINES , Color.YELLOW ) );
-				system.addSpring( new Spring( masses[x][y+1] , masses[x+1][y] , crossConnectRestLength , RENDER_ALL_LINES , Color.YELLOW ) );				
+				system.addSpring( new Spring( masses[x][y] , masses[x+1][y+1] , crossConnectRestLength , parameters.isRenderalllines() , Color.YELLOW ) );
+				system.addSpring( new Spring( masses[x][y+1] , masses[x+1][y] , crossConnectRestLength , parameters.isRenderalllines() , Color.YELLOW ) );				
 			}
 		}	
 
 		// connect cloth outline
 		final double horizOutlineRestLength = 2 * horizRestLength;
-		for ( int y = 0 ; y < ROWS ; y++ ) {
-			for ( int x = 0 ; x < (COLUMNS-2) ; x++ ) 
+		for ( int y = 0 ; y < parameters.getGridrows() ; y++ ) {
+			for ( int x = 0 ; x < (parameters.getGridcolumns()-2) ; x++ ) 
 			{
-				system.addSpring( new Spring( masses[x][y] , masses[x+2][y] , horizOutlineRestLength , RENDER_ALL_LINES, Color.BLUE ) );
+				system.addSpring( new Spring( masses[x][y] , masses[x+2][y] , horizOutlineRestLength , parameters.isRenderalllines(), Color.BLUE ) );
 			}	
 		}
 
 		final double verticalOutlineRestLength = 2 * verticalRestLength;
-		for ( int x = 0 ; x < COLUMNS ; x++ ) 
+		for ( int x = 0 ; x < parameters.getGridcolumns() ; x++ ) 
 		{ 
-			for ( int y = 0 ; y < (ROWS-2) ; y++ ) 
+			for ( int y = 0 ; y < (parameters.getGridrows()-2) ; y++ ) 
 			{
-				system.addSpring( new Spring( masses[x][y] , masses[x][y+2] , verticalOutlineRestLength , RENDER_ALL_LINES, Color.BLUE ) );
+				system.addSpring( new Spring( masses[x][y] , masses[x][y+2] , verticalOutlineRestLength , parameters.isRenderalllines(), Color.BLUE ) );
 			}		
 		}
 
@@ -149,7 +130,7 @@ public class ClothPanel extends JFrame {
 		simulationThread.start();
 
 		// setup panel
-		renderPanel = new RenderPanel(system,masses,COLUMNS,ROWS);
+		renderPanel = new RenderPanel(system,masses,parameters.getGridcolumns(),parameters.getGridrows());
 		renderPanel.setPreferredSize( new Dimension(800,400 ) );
 		getContentPane().add( renderPanel );
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -221,7 +202,7 @@ public class ClothPanel extends JFrame {
 				renderPanel.repaint();
 
 				try {
-					Thread.sleep(DELAY_MILLIS);
+					Thread.sleep(parameters.getFramesleeptime());
 				} 
 				catch (InterruptedException e) {
 				}
@@ -306,7 +287,7 @@ public class ClothPanel extends JFrame {
 				if ( selected != null ) 
 				{
 					final Vector4 newPos = viewToModel( e.getX() , e.getY() );
-					newPos.z=MOUSE_DRAG_ZDEPTH;
+					newPos.z=parameters.getMousedragzdepth();
 					selected.setPosition( newPos );
 					RenderPanel.this.repaint();
 				}
@@ -340,15 +321,15 @@ public class ClothPanel extends JFrame {
 
 		private Vector4 viewToModel(int x,int y) {
 
-			double scaleX = getWidth() / (double) X_RESOLUTION;
-			double scaleY = getHeight() / (double) Y_RESOLUTION;
+			double scaleX = getWidth() / (double) parameters.getXresolution();
+			double scaleY = getHeight() / (double) parameters.getYresolution();
 			return new Vector4( x / scaleX , y / scaleY , 0 );
 		}
 
 		private Point modelToView(Vector4 vec) 
 		{
-			double scaleX = getWidth() / (double) X_RESOLUTION;
-			double scaleY = getHeight() / (double) Y_RESOLUTION;
+			double scaleX = getWidth() / (double) parameters.getXresolution();
+			double scaleY = getHeight() / (double) parameters.getYresolution();
 			return modelToView( vec , scaleX , scaleY ); 
 		}
 
@@ -426,8 +407,8 @@ public class ClothPanel extends JFrame {
 			super.paintComponent(g);
 			synchronized( system ) 
 			{
-				final double scaleX = getWidth() / (double) X_RESOLUTION;
-				final double scaleY = getHeight() / (double) Y_RESOLUTION;
+				final double scaleX = getWidth() / (double) parameters.getXresolution();
+				final double scaleY = getHeight() / (double) parameters.getYresolution();
 
 				final int boxWidthUnits = 5;
 
@@ -437,7 +418,7 @@ public class ClothPanel extends JFrame {
 				final int halfBoxWidthPixels = (int) Math.round( boxWidthPixels / 2.0 );
 				final int halfBoxHeightPixels = (int) Math.round( boxHeightPixels / 2.0 );
 
-				if ( LIGHING ) 
+				if ( parameters.isLightsurfaces() ) 
 				{
 					final List<Triangle> triangles = new ArrayList<>( rows*columns*2 );
 					for ( int y = 0 ; y < rows-1 ; y++) 
@@ -461,14 +442,14 @@ public class ClothPanel extends JFrame {
 					final int[] pointY = new int[3];					
 					for ( Triangle t : triangles ) 
 					{
-						Color color = t.calculateSurfaceColor( LIGHT_POS , LIGHT_COLOR );
+						Color color = t.calculateSurfaceColor( parameters.getLightposition() , parameters.getLightcolor() );
 						t.getViewCoordinates(pointX,pointY);
 						g.setColor(color);
 						g.fillPolygon(pointX,pointY,3); 
 					}
 				}
 				
-				if ( RENDER_MASSES ) 
+				if ( parameters.isRendermasses() ) 
 				{
 					for ( Mass m : system.masses ) 
 					{
@@ -493,7 +474,7 @@ public class ClothPanel extends JFrame {
 				}
 
 				// render springs
-				if ( RENDER_SPRINGS ) 
+				if ( parameters.isRendersprings() ) 
 				{
 					g.setColor(Color.GREEN);
 					for ( Spring s : system.getSprings() ) 
