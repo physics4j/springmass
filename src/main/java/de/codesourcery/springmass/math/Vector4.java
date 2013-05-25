@@ -73,6 +73,11 @@ public final class Vector4
     	return false;
     }    
     
+    public static Vector4 valueOf(Color c) 
+    {
+    	return new Vector4( c.getRed() / 255.0 , c.getGreen() / 255.0 , c.getBlue() / 255.0 );
+    }
+    
     public int toRGB() 
     {
     	int r = (int) Math.max( 0 , Math.min(r()*255f,255) );

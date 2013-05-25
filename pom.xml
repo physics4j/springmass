@@ -128,7 +128,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
                 <finalName>springmass</finalName>
                 <archive>
                     <manifest>
-                        <mainClass>de.codesourcery.springmass.springmass.ClothPanel</mainClass>
+                        <mainClass>de.codesourcery.springmass.springmass.Main</mainClass>
                     </manifest>
                 </archive>
                <descriptors>
@@ -175,7 +175,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
        <artifactId>exec-maven-plugin</artifactId>
        <version>1.2.1</version>
        <configuration>
-        <mainClass>de.codesourcery.springmass.springmass.ClothPanel</mainClass>
+        <mainClass>de.codesourcery.springmass.springmass.Main</mainClass>
        </configuration>
      </plugin>
      <plugin>

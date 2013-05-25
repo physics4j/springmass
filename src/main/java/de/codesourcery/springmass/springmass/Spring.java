@@ -21,16 +21,16 @@ import de.codesourcery.springmass.math.Vector4;
 
 public class Spring {
 
-	public static final double DAMPENING = 0.1;
+	private final double dampening;
 	
 	public final Mass m1;
 	public final Mass m2;
 	
-	public final double coefficient=0.1;
+	private final double coefficient;
 	
-	public final double restLen;
+	private final double restLen;
 	
-	public final double maxLength;
+	private final double maxLength;
 	
 	public final boolean doRender;
 	
@@ -40,11 +40,17 @@ public class Spring {
 		this(m1,m2,restLength,false);
 	}
 	
-	public Spring(Mass m1, Mass m2,double restLength,boolean doRender) { 
+	public Spring(Mass m1, Mass m2,double restLength,boolean doRender) 
+	{ 
 		this(m1,m2,restLength,doRender,Color.GREEN);
 	}
 	
 	public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color) 
+	{
+		this(m1, m2, restLength, doRender, color, 0.1, 0.1 );
+	}
+	
+	public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color,double coefficient,double dampening) 
 	{
 		if ( m1 == null ) {
 			throw new IllegalArgumentException("m1 must not be null");
@@ -58,6 +64,8 @@ public class Spring {
 		this.m2 = m2;
 		this.doRender = doRender;
 		this.color = color;
+		this.coefficient = coefficient;
+		this.dampening = dampening;
 	}
 	
 	public double distanceTo(Vector4 c) 
@@ -106,7 +114,7 @@ Here X mean cross product of vectors, and * mean dot product of vectors. This ap
 			friction = m1.currentPosition.minus( m1.previousPosition );
 		}
 		
-		friction.multiplyInPlace( DAMPENING );
+		friction.multiplyInPlace( dampening );
 		
 		final double force = -coefficient*(lengthDelta.length()-restLen);
 		lengthDelta.multiplyInPlace( force );

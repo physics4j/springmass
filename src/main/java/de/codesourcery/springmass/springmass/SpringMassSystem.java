@@ -40,9 +40,9 @@ public class SpringMassSystem {
 	public SpringMassSystem(SimulationParameters params,Mass[][] massArray) {
 		this.params = params;
 		this.massArray = massArray;
-		for ( int x = 0 ; x < params.getGridColumns() ; x++ ) 
+		for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) 
 		{
-			for ( int y = 0 ; y < params.getGridRows() ; y++ ) 
+			for ( int y = 0 ; y < params.getGridRowCount() ; y++ ) 
 			{
 				masses.add( massArray[x][y]);
 			}
@@ -148,7 +148,7 @@ public class SpringMassSystem {
 		 */
 		final double deltaT = 6;
 		final double deltaTSquared = deltaT*deltaT;		
-		Vector4 gravity = new Vector4(0,1,0).multiply(9.81);
+		Vector4 gravity = new Vector4(0,1,0).multiply(params.getGravity());
 		for ( TaskResult entry : results )
 		{
 		   final Mass mass = entry.m;

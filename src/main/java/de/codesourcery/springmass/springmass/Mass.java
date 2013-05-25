@@ -26,7 +26,7 @@ public class Mass {
 	public Vector4 currentPosition;
 	public Vector4 previousPosition;	
 	
-	public final double mass = 1;
+	public final double mass;
 	
 	public final Color color;
 	
@@ -101,13 +101,6 @@ public class Mass {
 		return currentPosition.distanceTo( other.currentPosition );
 	}
 	
-	public Mass createCopy() 
-	{
-		final Mass result = new Mass(this.color , new Vector4( this.currentPosition ) );
-		result.flags = this.flags;
-		return result;
-	}
-
 	public void setFixed(boolean yesNo) {
 		flags = Flag.FIXED.setOrClear( flags  , yesNo );
 	}
@@ -130,11 +123,12 @@ public class Mass {
 		return Flag.SELECTED.isSet( flags );
 	}	
 	
-	public Mass(Color color,Vector4 position) {
+	public Mass(Color color,Vector4 position,double mass) {
 		if (position == null) {
 			throw new IllegalArgumentException("position must not be null");
 		}
 		this.color = color;
+		this.mass = mass;
 		setPosition(position);
 	}
 

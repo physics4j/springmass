@@ -17,10 +17,13 @@ package de.codesourcery.springmass.springmass;
 
 import java.awt.Dimension;
 import java.awt.Frame;
+import java.awt.Point;
 import java.awt.event.KeyAdapter;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
+
+import javax.swing.JFrame;
 
 import de.codesourcery.springmass.math.Vector4;
 
@@ -43,7 +46,7 @@ public class Main extends Frame {
 
 	public Main(SimulationParameters parameters) 
 	{
-		setup( parameters );
+		setup( parameters , false );
 
 		renderPanel = new RenderPanel();
 		renderPanel.setSimulator( simulator );
@@ -57,10 +60,14 @@ public class Main extends Frame {
 
 		renderPanel.setPreferredSize( new Dimension(800,400 ) );
 		add( renderPanel );
-		pack();
-		setVisible( true );
 		
-		addWindowListener( new WindowAdapter() 
+		final JFrame controlFrame = new ControlPanel() {
+			protected void applyChanges(SimulationParameters newParameters) {
+				setup( newParameters , true );
+			}
+		}.createFrame();
+		
+		final WindowAdapter closeListener = new WindowAdapter() 
 		{
 			public void windowClosing(java.awt.event.WindowEvent e) 
 			{
@@ -72,7 +79,16 @@ public class Main extends Frame {
 					System.exit(0);					
 				}
 			}
-		} );
+		};
+		
+		controlFrame.addWindowListener( closeListener );
+		addWindowListener( closeListener );
+		
+		pack();
+		setVisible( true );
+		
+		controlFrame.setLocation( new Point( getLocation().x + getSize().width , getLocation().y ) );
+		controlFrame.setVisible( true );
 		
 		synchronized(SIMULATOR_LOCK) 
 		{
@@ -80,7 +96,7 @@ public class Main extends Frame {
 		}
 	}
 
-	public void setup(SimulationParameters parameters) 
+	public void setup(SimulationParameters parameters,boolean startSimulator) 
 	{
 		synchronized(SIMULATOR_LOCK) 
 		{
@@ -100,6 +116,9 @@ public class Main extends Frame {
 			if ( renderPanel != null ) {
 				renderPanel.setSimulator( simulator );
 			}
+			if ( startSimulator ) {
+				this.simulator.start();
+			}
 		}
 	}
 
@@ -107,6 +126,23 @@ public class Main extends Frame {
 	{
 		private Mass selected;
 
+		private Mass getNearestMass(int x,int y) 
+		{
+			synchronized(SIMULATOR_LOCK) 
+			{
+				final SimulationParameters params = simulator.getSimulationParameters();
+				
+				final double gridWidth= params.getXResolution() / params.getGridColumnCount();
+				final double gridHeight = params.getYResolution() / params.getGridRowCount();
+				final double pickDepth = Math.abs( params.getMouseDragZDepth() + 1 );
+				
+				final double radius = Math.sqrt( gridWidth*gridWidth + gridHeight*gridHeight + pickDepth*pickDepth );
+				
+				final Vector4 mousePointer = renderPanel.viewToModel( x, y );
+				return simulator.getSpringMassSystem().getNearestMass( mousePointer , radius );
+			}
+		}
+		
 		public void mousePressed(java.awt.event.MouseEvent e) 
 		{
 			synchronized(SIMULATOR_LOCK) 
@@ -118,8 +154,7 @@ public class Main extends Frame {
 				if ( button == MouseEvent.BUTTON1 || button == MouseEvent.BUTTON3 ) 
 				{ 
 					// left click
-					final Vector4 mousePointer = renderPanel.viewToModel( e.getX() , e.getY() );
-					final Mass nearest = system.getNearestMass( mousePointer , 5*5 );
+					final Mass nearest = getNearestMass( e.getX() , e.getY() );
 					if ( button == MouseEvent.BUTTON1 ) 
 					{
 						setSelected( nearest );
@@ -136,9 +171,7 @@ public class Main extends Frame {
 				} 
 				else if ( button == MouseEvent.BUTTON2 ) 
 				{
-					final Vector4 mousePointer = renderPanel.viewToModel( e.getX() , e.getY() );
-
-					final Mass nearest = system.getNearestMass( mousePointer , 25*25 );
+					final Mass nearest = getNearestMass( e.getX() , e.getY() );
 
 					if ( nearest != null ) 
 					{
@@ -161,6 +194,7 @@ public class Main extends Frame {
 			}
 			selected = m;
 			if ( selected != null ) {
+				System.out.println("Selected");
 				selected.setSelected( true );
 			}
 		}
