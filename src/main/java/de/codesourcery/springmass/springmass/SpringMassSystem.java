@@ -28,12 +28,15 @@ import de.codesourcery.springmass.math.Vector4;
 
 public class SpringMassSystem {
 
-	public static final int FORK_THRESHOLD = 100;
 	private static final ForkJoinPool pool = new ForkJoinPool();	
 	
 	public List<Mass> masses = new ArrayList<>();
 
-	public static final double MAX_SPEED = 20;
+	private SimulationParameters params;
+	
+	public SpringMassSystem(SimulationParameters params) {
+		this.params = params;
+	}
 	
 	public void addMass(Mass m) 
 	{
@@ -131,7 +134,7 @@ public class SpringMassSystem {
 		   sumForces.multiplyInPlace( 1.0 / (mass.mass*deltaTSquared) );
 		   posDelta.plusInPlace( sumForces );
 		   
-		   posDelta.clampMagnitudeInPlace( MAX_SPEED );
+		   posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
 		   mass.currentPosition.plusInPlace( posDelta );
 		   mass.previousPosition = tmp;
 		}
@@ -180,7 +183,7 @@ public class SpringMassSystem {
 		   sumForces.multiplyInPlace( 1.0 / (mass.mass*deltaTSquared) );
 		   posDelta.plusInPlace( sumForces );
 		   
-		   posDelta.clampMagnitudeInPlace( MAX_SPEED );
+		   posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
 		   mass.currentPosition.plusInPlace( posDelta );
 		   mass.previousPosition = tmp;
 		}
@@ -197,7 +200,7 @@ public class SpringMassSystem {
 		
 	}
 	
-	protected static final class MyTask extends ForkJoinTask<List<TaskResult>> {
+	protected final class MyTask extends ForkJoinTask<List<TaskResult>> {
 
 		private List<TaskResult> result= new ArrayList<>();
 		private final List<Mass> masses;
@@ -226,7 +229,7 @@ public class SpringMassSystem {
 	    protected void compute() 
 	    {
 	    	final int len = masses.size();
-	        if (len < FORK_THRESHOLD ) 
+	        if (len < params.getForkJoinBatchSize() ) 
 	        {
 	            computeDirectly();
 	            return;

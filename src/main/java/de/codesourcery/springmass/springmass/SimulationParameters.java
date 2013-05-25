@@ -2,7 +2,8 @@ package de.codesourcery.springmass.springmass;
 
 import de.codesourcery.springmass.math.Vector4;
 
-public class SimulationParameters {
+public final class SimulationParameters 
+{
 	private final int xResolution = 1000;
 	private final int yResolution = 1000;
 
@@ -20,68 +21,79 @@ public class SimulationParameters {
 	private final double horizontalRestLengthFactor = 1;
 
 	private final boolean lightSurfaces = true;
-	private final Vector4 lightPosition = new Vector4(getXresolution() / 3.5, getYresolution() / 2.5, -200);
+	private final Vector4 lightPosition = new Vector4(getXResolution() / 3.5, getYResolution() / 2.5, -200);
 	private final Vector4 lightColor = new Vector4(.2, .2, 0.8);
 
 	private final int gridColumns = 633;
 	private final int gridRows = 33;
+	
+	private final double maxParticleSpeed = 20;
+	private final int forkJoinBatchSize = 100;
 
 	public SimulationParameters() {
 	}
 	
-	public int getXresolution() {
+	public int getXResolution() {
 		return xResolution;
 	}
 
-	public int getYresolution() {
+	public int getYResolution() {
 		return yResolution;
 	}
 
-	public int getFramesleeptime() {
+	public int getFrameSleepTime() {
 		return frameSleepTime;
 	}
 
-	public boolean isRenderalllines() {
+	public boolean isRenderAllLines() {
 		return renderAllLines;
 	}
 
-	public boolean isRendersprings() {
+	public boolean isRenderSprings() {
 		return renderSprings;
 	}
 
-	public boolean isRendermasses() {
+	public boolean isRenderMasses() {
 		return renderMasses;
 	}
 
-	public double getMousedragzdepth() {
+	public double getMouseDragZDepth() {
 		return mouseDragZDepth;
 	}
 
-	public double getVerticalrestlengthfactor() {
+	public double getVerticalRestLengthFactor() {
 		return verticalRestLengthFactor;
 	}
 
-	public double getHorizontalrestlengthfactor() {
+	public double getHorizontalRestLengthFactor() {
 		return horizontalRestLengthFactor;
 	}
 
-	public boolean isLightsurfaces() {
+	public boolean isLightSurfaces() {
 		return lightSurfaces;
 	}
 
-	public Vector4 getLightposition() {
+	public Vector4 getLightPosition() {
 		return lightPosition;
 	}
 
-	public Vector4 getLightcolor() {
+	public Vector4 getLightColor() {
 		return lightColor;
 	}
 
-	public int getGridcolumns() {
+	public int getGridColumns() {
 		return gridColumns;
 	}
 
-	public int getGridrows() {
+	public int getGridRows() {
 		return gridRows;
+	}
+
+	public double getMaxParticleSpeed() {
+		return maxParticleSpeed;
+	}
+
+	public int getForkJoinBatchSize() {
+		return forkJoinBatchSize;
 	}
 }
