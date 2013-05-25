@@ -23,12 +23,14 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.locks.ReentrantLock;
 
 import de.codesourcery.springmass.math.Vector4;
 
 public class SpringMassSystem {
 
 	private static final ForkJoinPool pool = new ForkJoinPool();	
+	private final ReentrantLock lock = new ReentrantLock();	
 	
 	private final Mass[][] massArray;
 	public List<Mass> masses = new ArrayList<>();
@@ -106,7 +108,27 @@ public class SpringMassSystem {
 		s.m1.addSpring( s );
 	}
 	
-	public synchronized void step() 
+	public void lock() {
+		lock.lock();
+	}
+	
+	public void unlock() {
+		lock.unlock();
+	}
+	
+	public void step() 
+	{
+		lock();
+		try 
+		{
+			doStep();
+		} finally {
+			unlock();
+		}
+		 
+	}
+	
+	private void doStep() 
 	{
 		MyTask task = new MyTask( masses );
 		pool.submit( task );

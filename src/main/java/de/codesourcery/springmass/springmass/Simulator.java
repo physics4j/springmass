@@ -1,5 +1,7 @@
 package de.codesourcery.springmass.springmass;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 public abstract class Simulator {
 
 	private final SpringMassSystem system;
@@ -19,7 +21,9 @@ public abstract class Simulator {
 			protected void tick() 
 			{
 				long stepTime = -System.currentTimeMillis();
+				
 				system.step();
+				
 				stepTime += System.currentTimeMillis();
 				
 				long renderTime = -System.currentTimeMillis();

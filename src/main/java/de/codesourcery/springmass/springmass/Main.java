@@ -16,15 +16,15 @@
 package de.codesourcery.springmass.springmass;
 
 import java.awt.Dimension;
+import java.awt.Frame;
 import java.awt.event.KeyAdapter;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-
-import javax.swing.JFrame;
+import java.awt.event.WindowAdapter;
 
 import de.codesourcery.springmass.math.Vector4;
 
-public class Main extends JFrame {
+public class Main extends Frame {
 
 	private final Object SIMULATOR_LOCK = new Object();
 
@@ -56,10 +56,28 @@ public class Main extends JFrame {
 		renderPanel.addMouseMotionListener( mouseAdapter );
 
 		renderPanel.setPreferredSize( new Dimension(800,400 ) );
-		getContentPane().add( renderPanel );
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		add( renderPanel );
 		pack();
 		setVisible( true );
+		
+		addWindowListener( new WindowAdapter() 
+		{
+			public void windowClosing(java.awt.event.WindowEvent e) 
+			{
+				synchronized(SIMULATOR_LOCK) 
+				{
+					if ( simulator != null ) {
+						simulator.destroy();
+					}
+					System.exit(0);					
+				}
+			}
+		} );
+		
+		synchronized(SIMULATOR_LOCK) 
+		{
+			this.simulator.start();
+		}
 	}
 
 	public void setup(SimulationParameters parameters) 
@@ -76,7 +94,7 @@ public class Main extends JFrame {
 				@Override
 				protected void afterTick() 
 				{
-					renderPanel.doRender();
+					renderPanel.doRender(true);
 				}
 			};		
 			if ( renderPanel != null ) {
@@ -105,14 +123,14 @@ public class Main extends JFrame {
 					if ( button == MouseEvent.BUTTON1 ) 
 					{
 						setSelected( nearest );
-						renderPanel.repaint();
+						renderPanel.doRender(true);
 					} 
 					else 
 					{
 						if ( nearest != null ) 
 						{
 							nearest.setFixed( ! nearest.isFixed() );
-							renderPanel.repaint();
+							renderPanel.doRender(true);
 						}
 					}
 				} 
@@ -129,7 +147,7 @@ public class Main extends JFrame {
 						{
 							system.removeSpring( s);
 						}
-						renderPanel.repaint();
+						renderPanel.doRender(true);
 					}
 				}
 			}
@@ -164,7 +182,7 @@ public class Main extends JFrame {
 					final Vector4 newPos = renderPanel.viewToModel( e.getX() , e.getY() );
 					newPos.z=parameters.getMouseDragZDepth();
 					selected.setPosition( newPos );
-					renderPanel.repaint();
+					renderPanel.doRender(true);
 				}
 			}
 		}
