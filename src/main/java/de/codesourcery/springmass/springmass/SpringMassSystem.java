@@ -30,17 +30,26 @@ public class SpringMassSystem {
 
 	private static final ForkJoinPool pool = new ForkJoinPool();	
 	
+	private final Mass[][] massArray;
 	public List<Mass> masses = new ArrayList<>();
 
 	private SimulationParameters params;
 	
-	public SpringMassSystem(SimulationParameters params) {
+	public SpringMassSystem(SimulationParameters params,Mass[][] massArray) {
 		this.params = params;
+		this.massArray = massArray;
+		for ( int x = 0 ; x < params.getGridColumns() ; x++ ) 
+		{
+			for ( int y = 0 ; y < params.getGridRows() ; y++ ) 
+			{
+				masses.add( massArray[x][y]);
+			}
+		}
 	}
 	
-	public void addMass(Mass m) 
+	public Mass[][] getMassArray() 
 	{
-		this.masses.add( m );
+		return massArray;
 	}
 	
 	public Mass getNearestMass(Vector4 pos,double maxDistanceSquared) {
@@ -99,7 +108,6 @@ public class SpringMassSystem {
 	
 	public synchronized void step() 
 	{
-
 		MyTask task = new MyTask( masses );
 		pool.submit( task );
 		
