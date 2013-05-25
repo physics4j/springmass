@@ -121,14 +121,14 @@ public class SpringMassSystem {
 		lock();
 		try 
 		{
-			doStep();
+			stepMultithreaded();
 		} finally {
 			unlock();
 		}
 		 
 	}
 	
-	private void doStep() 
+	private void stepMultithreaded() 
 	{
 		MyTask task = new MyTask( masses );
 		pool.submit( task );
@@ -166,6 +166,9 @@ public class SpringMassSystem {
 		   
 		   posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
 		   mass.currentPosition.plusInPlace( posDelta );
+		   if ( mass.currentPosition.y > params.getYResolution() ) {
+			   mass.currentPosition.y = params.getYResolution();
+		   }
 		   mass.previousPosition = tmp;
 		}
 	}

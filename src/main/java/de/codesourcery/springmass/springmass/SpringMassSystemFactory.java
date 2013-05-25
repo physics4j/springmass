@@ -45,19 +45,22 @@ public class SpringMassSystemFactory {
 		double scaleX = parameters.getXResolution() / (parameters.getGridColumnCount()+parameters.getGridColumnCount()*0.5);
 		double scaleY = parameters.getYResolution() / (parameters.getGridRowCount()+parameters.getGridRowCount()*0.5);
 		
+		final double factorDecrement = 1.0 / (double) parameters.getGridRowCount();
 		final double xOffset = parameters.getXResolution()*0.2;
 		final double yOffset = scaleY;
 		
 		for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
 		{
+			double factor = 1.0;
 			for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
 			{
-				final Vector4 pos = new Vector4( xOffset + scaleX*x , yOffset + scaleY*y,0);
+				final Vector4 pos = new Vector4( xOffset + scaleX*x , yOffset + scaleY*factor*y,-10);
 				final Mass m = new Mass( Color.red  , pos , parameters.getParticleMass() );
 				if ( y == 0 ) {
 					m.setFixed( true );
 				}
 				masses[x][y] = m;
+				factor -= factorDecrement;
 			}
 		}
 		

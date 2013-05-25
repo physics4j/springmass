@@ -189,8 +189,8 @@ public class SimulationParamsBuilder {
 		
 		debugPerformance=false;
 		
-		springDampening=0.1;
-		springCoefficient=0.1;	
+		springDampening=0.2;
+		springCoefficient=0.01;	
 
 		renderAllSprings = true;
 
@@ -202,19 +202,19 @@ public class SimulationParamsBuilder {
 
 		mouseDragZDepth = -100;
 
-		verticalRestLengthFactor = 1;
+		verticalRestLengthFactor = 0.4;
 		horizontalRestLengthFactor = 1;
 
 		lightSurfaces = true;
 		
 		lightColor = new Color(50, 50, 200);
 
-		gravity = 9.81;
+		gravity = 50;
 
 		gridColumnCount = 13;
 		gridRowCount = 13;
 
-		maxParticleSpeed = 20;
+		maxParticleSpeed = 30;
 		forkJoinBatchSize = 1000;		
 		
 		updateLightPosition();
@@ -553,7 +553,7 @@ public class SimulationParamsBuilder {
 		return gravity;
 	}
 
-	@ValueRange(minValue=0,maxValue=50)
+	@ValueRange(minValue=0,maxValue=70)
 	public void setGravity(double gravity) {
 		this.gravity = gravity;
 	}
