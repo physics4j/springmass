@@ -5,10 +5,18 @@ Simple mass-spring simulation n Java
 
 This project contains a simple mass-spring simulation along with a Swing App that showcases it.
 
+Requirements
+------------
+
+- Maven 2.2.1 (should work with Maven3 as well)
+- JDK 1.7 or higher
+
+Running
+-------
+
 To compile and run:
 
-  mvn clean package
-  java -jar target/springmass.jar
+  mvn compile exec:java
 
 Controls
 --------
