@@ -59,6 +59,14 @@ public final class RenderPanel extends Canvas {
 		addComponentListener( new ComponentAdapter() {
 
 			@Override
+			public void componentShown(ComponentEvent e) {
+				synchronized(BUFFER_LOCK) 
+				{
+					createBufferStrategy(3);
+				}
+			}
+			
+			@Override
 			public void componentResized(ComponentEvent e) 
 			{
 				synchronized(BUFFER_LOCK) 
