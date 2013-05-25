@@ -39,6 +39,8 @@ public class SpringMassSystemFactory {
 		for ( int i = 0 ; i < parameters.getGridColumnCount() ; i++ ) {
 			masses[i] = new Mass[parameters.getGridRowCount()];
 		}
+		
+		int springCount = 0;
 
 		double scaleX = parameters.getXResolution() / (parameters.getGridColumnCount()+parameters.getGridColumnCount()*0.5);
 		double scaleY = parameters.getYResolution() / (parameters.getGridRowCount()+parameters.getGridRowCount()*0.5);
@@ -68,6 +70,7 @@ public class SpringMassSystemFactory {
 			for ( int x = 0 ; x < (parameters.getGridColumnCount()-1) ; x++ ) 
 			{
 				system.addSpring( createSpring( masses[x][y] , masses[x+1][y] , horizRestLength , true , parameters ) );
+				springCount++;
 			}
 		}
 
@@ -78,6 +81,7 @@ public class SpringMassSystemFactory {
 			for ( int y = 0 ; y < (parameters.getGridRowCount()-1) ; y++ ) 
 			{
 				system.addSpring( createSpring( masses[x][y] , masses[x][y+1] , verticalRestLength , true , parameters ) );
+				springCount++;
 			}
 		}	
 
@@ -87,8 +91,9 @@ public class SpringMassSystemFactory {
 		{
 			for ( int y = 0 ; y < (parameters.getGridRowCount()-1) ; y++ ) 
 			{
-				system.addSpring( createSpring( masses[x][y] , masses[x+1][y+1] , crossConnectRestLength , parameters.isRenderAllLines() , Color.YELLOW , parameters ) );
-				system.addSpring( createSpring( masses[x][y+1] , masses[x+1][y] , crossConnectRestLength , parameters.isRenderAllLines() , Color.YELLOW , parameters ) );				
+				system.addSpring( createSpring( masses[x][y] , masses[x+1][y+1] , crossConnectRestLength , parameters.isRenderAllSprings() , Color.YELLOW , parameters ) );
+				system.addSpring( createSpring( masses[x][y+1] , masses[x+1][y] , crossConnectRestLength , parameters.isRenderAllSprings() , Color.YELLOW , parameters ) );
+				springCount+=2;
 			}
 		}	
 
@@ -97,7 +102,8 @@ public class SpringMassSystemFactory {
 		for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) {
 			for ( int x = 0 ; x < (parameters.getGridColumnCount()-2) ; x++ ) 
 			{
-				system.addSpring( createSpring( masses[x][y] , masses[x+2][y] , horizOutlineRestLength , parameters.isRenderAllLines(), Color.BLUE , parameters ) );
+				system.addSpring( createSpring( masses[x][y] , masses[x+2][y] , horizOutlineRestLength , parameters.isRenderAllSprings(), Color.BLUE , parameters ) );
+				springCount++;
 			}	
 		}
 
@@ -106,9 +112,11 @@ public class SpringMassSystemFactory {
 		{ 
 			for ( int y = 0 ; y < (parameters.getGridRowCount()-2) ; y++ ) 
 			{
-				system.addSpring( createSpring( masses[x][y] , masses[x][y+2] , verticalOutlineRestLength , parameters.isRenderAllLines(), Color.BLUE , parameters ) );
+				system.addSpring( createSpring( masses[x][y] , masses[x][y+2] , verticalOutlineRestLength , parameters.isRenderAllSprings(), Color.BLUE , parameters ) );
+				springCount++;				
 			}		
 		}
+		System.out.println("Springs: "+springCount);
 		return system;
 	}
 }

@@ -26,7 +26,7 @@ public final class SimulationParameters
 
 	private final int frameSleepTime;
 
-	private final boolean renderAllLines;
+	private final boolean renderAllSprings;
 
 	private final boolean renderSprings;
 
@@ -41,6 +41,8 @@ public final class SimulationParameters
 
 	private final double verticalRestLengthFactor;
 	private final double horizontalRestLengthFactor;
+	
+	private final boolean debugPerformance;
 
 	private final boolean lightSurfaces;
 	private final Vector4 lightPosition;
@@ -61,8 +63,10 @@ public final class SimulationParameters
 
 		frameSleepTime = 20;
 
-		renderAllLines = false;
+		renderAllSprings = false;
 
+		debugPerformance = false;
+		
 		renderSprings = false;
 
 		renderMasses = false;
@@ -96,12 +100,14 @@ public final class SimulationParameters
 			boolean lightSurfaces, Vector4 lightPosition, Color lightColor,
 			double gravity, int gridColumnCount, int gridRowCount,
 			double maxParticleSpeed, int forkJoinBatchSize,
-			double springCoefficient,double springDampening,double particleMass) 
+			double springCoefficient,double springDampening,double particleMass,
+			boolean debugPerformance) 
 	{
 		this.xResolution = xResolution;
 		this.yResolution = yResolution;
+		this.debugPerformance = debugPerformance;
 		this.frameSleepTime = frameSleepTime;
-		this.renderAllLines = renderAllLines;
+		this.renderAllSprings = renderAllLines;
 		this.renderSprings = renderSprings;
 		this.renderMasses = renderMasses;
 		this.mouseDragZDepth = mouseDragZDepth;
@@ -140,8 +146,8 @@ public final class SimulationParameters
 		return frameSleepTime;
 	}
 
-	public boolean isRenderAllLines() {
-		return renderAllLines;
+	public boolean isRenderAllSprings() {
+		return renderAllSprings;
 	}
 
 	public boolean isRenderSprings() {
@@ -198,5 +204,9 @@ public final class SimulationParameters
 
 	public double getSpringCoefficient() {
 		return springCoefficient;
+	}
+
+	public boolean isDebugPerformance() {
+		return debugPerformance;
 	}
 }

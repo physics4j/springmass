@@ -15,6 +15,7 @@
  */
 package de.codesourcery.springmass.springmass;
 
+import java.awt.Color;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -28,16 +29,23 @@ import java.util.Map;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JColorChooser;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSlider;
 import javax.swing.JTextField;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 import de.codesourcery.springmass.springmass.SimulationParamsBuilder.SimulationParameter;
+import de.codesourcery.springmass.springmass.SimulationParamsBuilder.SliderHint;
 
-public class ControlPanel extends JPanel {
+public abstract class ControlPanel extends JPanel {
 
+	private static final int SLIDER_MAX = 1000;
+	
 	private final SimulationParamsBuilder builder;
 	private volatile SimulationParameters parameters;
 	
@@ -51,35 +59,75 @@ public class ControlPanel extends JPanel {
 			this.p = p;
 		}
 		
-		public boolean isValid(String value) {
-			return true;
+		public SimulationParameter getSimulationParameter() {
+			return p;
 		}
 		
 		public void apply(Object value) 
 		{
-			System.out.println("Setting "+p.getName() +" = "+value);
+//			System.out.println("Setting "+p.getName() +" = "+value);
 			
 			if ( value instanceof String) 
 			{
 				p.setValue( convertString( (String) value ) );
-			} else {
+			} 
+			else 
+			{
+				if ( isNumericParameter() ) 
+				{
+					Object realValue = value;
+					if ( p.getType() == Double.class || p.getType() == Double.TYPE ) {
+						realValue = ((Number) value).doubleValue();
+					} else if ( p.getType() == Float.class || p.getType() == Float.TYPE ) {
+						realValue = ((Number) value).floatValue();
+					} else if ( p.getType() == Long.class || p.getType() == Long.TYPE ) {
+						realValue = ((Number) value).longValue();
+					} else if ( p.getType() == Integer.class || p.getType() == Integer.TYPE ) {
+						realValue = ((Number) value).intValue();
+					} else if ( p.getType() == Short.class || p.getType() == Short.TYPE ) {
+						realValue = ((Number) value).shortValue();
+					} else if ( p.getType() == Byte.class || p.getType() == Byte.TYPE ) {
+						realValue = ((Number) value).byteValue();
+					}
+					p.setValue( realValue );
+					return;
+				}
 				p.setValue( value );
 			}
 		}
 		
-		private boolean isNumeric(Class<?> clazz) {
+		public boolean isNumericParameter() {
+			return isNumeric( p.getType() );
+		}
+		
+		public boolean isIntegerParameter() 
+		{
+			if ( isNumericParameter() ) 
+			{
+				Class<?> clazz = p.getType();
+				if ( clazz == Long.class || clazz == Integer.class || clazz == Short.class || clazz == Byte.class) {
+					return true;
+				}
+				if ( clazz == Long.TYPE || clazz == Integer.TYPE || clazz == Short.TYPE || clazz == Byte.TYPE ) {
+					return true;
+				}
+			}
+			return false;
+		}
+		private boolean isNumeric(Class<?> clazz) 
+		{
 			if ( Number.class.isAssignableFrom( clazz ) ) {
 				return true;
 			}
 			if ( clazz.isPrimitive() ) {
-				return clazz  == Long.TYPE || clazz == Integer.TYPE || clazz == Double.TYPE || clazz == Float.TYPE;
+				return clazz  == Long.TYPE || clazz == Integer.TYPE || clazz == Double.TYPE || clazz == Float.TYPE || clazz == Short.TYPE || clazz == Byte.TYPE;
 			}
 			return false;
 		}
 
 		private Object convertString(String value) 
 		{
-			if ( isNumeric( p.getType() ) ) 
+			if ( isNumericParameter() ) 
 			{
 				double val = Double.parseDouble( value );
 				if ( p.getType() == Long.class || p.getType() == Long.TYPE ) {
@@ -90,6 +138,16 @@ public class ControlPanel extends JPanel {
 				{
 					return (int) val;
 				} 
+				
+				if ( p.getType() == Short.class || p.getType() == Short.TYPE ) 
+				{
+					return (short) val;
+				}	
+				
+				if ( p.getType() == Byte.class || p.getType() == Byte.TYPE ) 
+				{
+					return (short) val;
+				}				
 				
 				if ( p.getType() == Double.class || p.getType() == Double.TYPE ) {
 					return val;
@@ -110,7 +168,12 @@ public class ControlPanel extends JPanel {
 	
 	public static void main(String[] args) 
 	{
-		JFrame frame = new ControlPanel().createFrame();
+		final JFrame frame = new ControlPanel() 
+		{
+			@Override
+			protected void applyChanges(SimulationParameters p) {}
+		}.createFrame();
+		
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE );
 		frame.setVisible(true);
 	}
@@ -136,10 +199,7 @@ public class ControlPanel extends JPanel {
 		return frame;
 	}
 	
-	protected void applyChanges(SimulationParameters newParameters) 
-	{
-		
-	}
+	protected abstract void applyChanges(SimulationParameters newParameters); 
 
 	public ControlPanel() 
 	{
@@ -154,13 +214,8 @@ public class ControlPanel extends JPanel {
 		final List<SimulationParameter> params = builder.getParameters();
 		final JPanel inputPanel = new JPanel();
 		inputPanel.setLayout( new GridLayout( params.size() , 2 ) );
-		for ( SimulationParameter p : params ) 
-		{
-			final JComponent component = createComponent(p);
-			inputPanel.add( new JLabel( p.getName() ) );
-			inputPanel.add( component );
-			components.put( p , component );
-		}
+		
+		populateInputPanel(params, inputPanel);
 		
 		setLayout( new GridBagLayout() );
 		
@@ -181,7 +236,7 @@ public class ControlPanel extends JPanel {
 		cnstrs.gridx=0;
 		cnstrs.gridy=1;		
 		cnstrs.gridheight=GridBagConstraints.REMAINDER;
-		cnstrs.gridwidth=GridBagConstraints.REMAINDER;
+		cnstrs.gridwidth=GridBagConstraints.RELATIVE;
 		cnstrs.weightx=1;
 		cnstrs.weighty=1;
 		
@@ -197,6 +252,43 @@ public class ControlPanel extends JPanel {
 		});
 
 		add( applyButton , cnstrs );
+		
+		// add reset button
+		cnstrs = new GridBagConstraints();
+		cnstrs.fill=GridBagConstraints.NONE;
+		cnstrs.gridx=1;
+		cnstrs.gridy=1;		
+		cnstrs.gridheight=GridBagConstraints.REMAINDER;
+		cnstrs.gridwidth=GridBagConstraints.REMAINDER;
+		cnstrs.weightx=1;
+		cnstrs.weighty=1;
+		
+		final JButton resetButton = new JButton("Reset");
+		resetButton.addActionListener( new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) 
+			{
+				builder.reset();
+				parameters = builder.build();
+				inputPanel.removeAll();
+				populateInputPanel( builder.getParameters() , inputPanel );
+				revalidate();
+				applyChanges( parameters );
+			}
+		});		
+		add( resetButton , cnstrs );
+	}
+
+	private void populateInputPanel(final List<SimulationParameter> params,final JPanel inputPanel) 
+	{
+		for ( SimulationParameter p : params ) 
+		{
+			final JComponent component = createComponent(p);
+			inputPanel.add( new JLabel( p.getName() ) );
+			inputPanel.add( component );
+			components.put( p , component );
+		}
 	}
 	
 	private JComponent createComponent(final SimulationParameter p) 
@@ -204,7 +296,32 @@ public class ControlPanel extends JPanel {
 		final ValueConverter converter = new ValueConverter(p);
 		
 		final JComponent result;
-		if ( p.getType() == Boolean.class || p.getType() == Boolean.TYPE ) 
+		if ( converter.isNumericParameter() && ! p.getHints( SliderHint.class ).isEmpty() ) 
+		{
+			result = createNumericInput( converter , p.getHints(SliderHint.class).get(0) ); 
+		} 
+		else if ( p.getType() == Color.class ) 
+		{
+			final JButton tmp = new JButton( "    " );
+			tmp.addActionListener( new ActionListener() {
+				
+				@Override
+				public void actionPerformed(ActionEvent e) 
+				{
+					Color result = JColorChooser.showDialog(null, p.getName() , (Color) p.getValue() );
+					if ( result != null ) {
+						p.setValue( result );
+						tmp.setForeground( result );
+						tmp.setBackground( result );
+					}
+				}
+			});
+			final Color c = (Color) p.getValue();
+			tmp.setForeground( c );
+			tmp.setBackground( c );
+			result = tmp;	
+		} 
+		else if ( p.getType() == Boolean.class || p.getType() == Boolean.TYPE ) 
 		{
 			if ( p.isWriteOnly() ) 
 			{
@@ -261,6 +378,151 @@ public class ControlPanel extends JPanel {
 			result = tmp;
 		}
 		return result;
+	}
+	
+	
+	protected static final class SliderHelper {
+		
+		private final SliderHint hint;
+		private final double g;
+		
+		public SliderHelper(SliderHint hint) {
+			this.hint = hint;
+			g = hint.getMaxValue() - hint.getMinValue();
+		}
+		
+		public double fromSliderValue(int sliderValue) {
+	    	return hint.getMinValue() + (sliderValue/(double) SLIDER_MAX)*g;			
+		}
+		
+		public int toSliderValue(double value) 
+		{
+			final double actualValue = value - hint.getMinValue();
+
+			int sliderPos = (int) Math.round( SLIDER_MAX*( actualValue / g ) );
+			if ( sliderPos > SLIDER_MAX ) {
+				sliderPos = SLIDER_MAX;
+			} else if ( sliderPos < 0 ) {
+				sliderPos = 0;
+			}
+			return sliderPos;			
+		}
+	}
+	
+	private JComponent createNumericInput(final ValueConverter valueConverter,final SliderHint hint) 
+	{
+		final SimulationParameter p = valueConverter.getSimulationParameter();
+		
+		final JTextField textfield = new JTextField();
+		
+		final SliderHelper helper = new SliderHelper( hint );
+		
+		final int sliderValue = helper.toSliderValue( ((Number) p.getValue() ).doubleValue() );
+		final JSlider slider = new JSlider( JSlider.HORIZONTAL, 0 , SLIDER_MAX , sliderValue );
+		
+		final ChangeListener[] changeListener={null};
+		final ActionListener textFieldListener = new ActionListener() 
+		{
+			@Override
+			public void actionPerformed(ActionEvent e) 
+			{
+				double value = Double.parseDouble( textfield.getText() );
+				if ( valueConverter.isIntegerParameter() ) {
+					value = Math.round(value);
+				}
+				valueConverter.apply( value );
+				
+				slider.getModel().removeChangeListener( changeListener[0] );
+				try {
+					slider.setValue( helper.toSliderValue( value ) );
+				} 
+				finally {
+					slider.getModel().addChangeListener( changeListener[0] );
+				}
+			}
+		};
+		
+		changeListener[0] = new ChangeListener() 
+		{
+			@Override
+			public void stateChanged(ChangeEvent e) 
+			{
+		    	double newValue = helper.fromSliderValue( slider.getValue() );
+		    	if ( valueConverter.isIntegerParameter()  ) {
+		    		newValue = Math.round(newValue);
+		    		valueConverter.apply( newValue );
+		    	} else {
+		    		valueConverter.apply( newValue );
+		    	}
+		    	
+		    	textfield.removeActionListener( textFieldListener );
+		    	try 
+		    	{
+		    		if ( valueConverter.isIntegerParameter() ) {
+		    			textfield.setText( Long.toString( (long) newValue ) );
+		    		} else {
+		    			textfield.setText( Double.toString( newValue ) );
+		    		}
+		    	} finally {
+		    		textfield.addActionListener(textFieldListener);
+		    	}
+			}
+		};		
+		
+		// setup slider
+		slider.getModel().addChangeListener( changeListener[0] );
+		
+		// setup textfield
+		textfield.setText( p.getValue().toString() );
+		textfield.setColumns( 6 );
+		textfield.setHorizontalAlignment(JTextField.TRAILING);
+		textfield.addActionListener( textFieldListener );
+		textfield.addFocusListener( new FocusListener() {
+			
+			@Override
+			public void focusLost(FocusEvent e) {
+				valueConverter.apply( textfield.getText() );					
+			}
+			
+			@Override
+			public void focusGained(FocusEvent e) {
+			}
+		});
+		
+		if ( p.isReadOnly() ) 
+		{
+			slider.setEnabled( false );
+			textfield.setEditable( false );
+			textfield.setEnabled( false );
+		}
+		
+		// setup panel
+		final JPanel panel = new JPanel();
+		panel.setLayout( new GridBagLayout() );		
+		
+		// add textfield
+		GridBagConstraints cnstrs = new GridBagConstraints();
+		cnstrs.fill=GridBagConstraints.HORIZONTAL;
+		cnstrs.gridx=0;
+		cnstrs.gridy=0;		
+		cnstrs.gridheight=GridBagConstraints.REMAINDER;
+		cnstrs.gridwidth=GridBagConstraints.RELATIVE;
+		cnstrs.weightx=0.1;
+		cnstrs.weighty=0;	
+		panel.add( textfield , cnstrs );	
+		
+		// add slider
+		cnstrs = new GridBagConstraints();
+		cnstrs.fill=GridBagConstraints.HORIZONTAL;
+		cnstrs.gridx=1;
+		cnstrs.gridy=0;		
+		cnstrs.gridheight=GridBagConstraints.REMAINDER;
+		cnstrs.gridwidth=GridBagConstraints.REMAINDER;
+		cnstrs.weightx=0.9;
+		cnstrs.weighty=0;	
+		panel.add( slider , cnstrs );		
+		
+		return panel;
 	}
 	
 	public SimulationParameters getSimulationParameters() {

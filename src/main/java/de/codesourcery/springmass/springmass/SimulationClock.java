@@ -37,7 +37,6 @@ public abstract class SimulationClock extends Thread
 		{
 			if ( runSimulation ) 
 			{
-				System.out.println("Stopping simlation");
 				runSimulation = false;
 			} 
 		}
@@ -66,7 +65,6 @@ public abstract class SimulationClock extends Thread
 		{
 			if ( ! runSimulation ) 
 			{
-				System.out.println("Starting simlation");
 				runSimulation = true;
 				LOCK.notifyAll();
 			}

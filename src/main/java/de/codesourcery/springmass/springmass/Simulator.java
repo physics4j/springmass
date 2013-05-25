@@ -15,7 +15,6 @@
  */
 package de.codesourcery.springmass.springmass;
 
-import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class Simulator {
 
@@ -23,7 +22,7 @@ public abstract class Simulator {
 	private final SimulationClock simulationClock;
 	private final SimulationParameters parameters;
 	
-	public Simulator(SimulationParameters parameters) 
+	public Simulator(final SimulationParameters parameters) 
 	{
 		this.parameters = parameters;
 		this.system = new SpringMassSystemFactory().create(parameters);
@@ -46,7 +45,7 @@ public abstract class Simulator {
 				renderTime += System.currentTimeMillis();
 				
 				tickCounter++;
-				if ( (tickCounter%30) == 0 ) {
+				if ( parameters.isDebugPerformance() && (tickCounter%30) == 0 ) {
 					System.out.println("Simulation time: "+stepTime+" ms / rendering time: "+renderTime+" ms / total: "+(stepTime+renderTime)+" ms");
 				}
 			}

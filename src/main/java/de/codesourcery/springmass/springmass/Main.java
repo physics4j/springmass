@@ -110,7 +110,7 @@ public class Main extends Frame {
 				@Override
 				protected void afterTick() 
 				{
-					renderPanel.doRender(true);
+					renderPanel.doRender();
 				}
 			};		
 			if ( renderPanel != null ) {
@@ -158,14 +158,14 @@ public class Main extends Frame {
 					if ( button == MouseEvent.BUTTON1 ) 
 					{
 						setSelected( nearest );
-						renderPanel.doRender(true);
+						renderPanel.doRender();
 					} 
 					else 
 					{
 						if ( nearest != null ) 
 						{
 							nearest.setFixed( ! nearest.isFixed() );
-							renderPanel.doRender(true);
+							renderPanel.doRender();
 						}
 					}
 				} 
@@ -180,7 +180,7 @@ public class Main extends Frame {
 						{
 							system.removeSpring( s);
 						}
-						renderPanel.doRender(true);
+						renderPanel.doRender();
 					}
 				}
 			}
@@ -194,7 +194,6 @@ public class Main extends Frame {
 			}
 			selected = m;
 			if ( selected != null ) {
-				System.out.println("Selected");
 				selected.setSelected( true );
 			}
 		}
@@ -216,7 +215,7 @@ public class Main extends Frame {
 					final Vector4 newPos = renderPanel.viewToModel( e.getX() , e.getY() );
 					newPos.z=parameters.getMouseDragZDepth();
 					selected.setPosition( newPos );
-					renderPanel.doRender(true);
+					renderPanel.doRender();
 				}
 			}
 		}

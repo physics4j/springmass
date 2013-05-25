@@ -39,49 +39,91 @@ import de.codesourcery.springmass.math.Vector4;
 
 public class SimulationParamsBuilder {
 
-	private int xResolution = 1000;
-	private int yResolution = 1000;
-
-	private int frameSleepTime = 20;
+	/* 
+	 *  See reset() method for default values.
+	 */
 	
-	private double springDampening=0.1;
-	private double springCoefficient=0.1;	
+	private int xResolution;
+	private int yResolution;
 
-	private boolean renderAllLines = false;
-
-	private boolean renderSprings = false;
-
-	private boolean renderMasses = false;
+	private int frameSleepTime;
 	
-	private double particleMass = 1.0;
-
-	private double mouseDragZDepth = -100;
-
-	private double verticalRestLengthFactor = 1;
-	private double horizontalRestLengthFactor = 1;
-
-	private boolean lightSurfaces = true;
+	private boolean debugPerformance;
 	
-	private Vector4 lightPosition = new Vector4(xResolution / 3.5, yResolution / 2.5, -200);
-	private Color lightColor = new Color(50, 50, 200);
+	private double springDampening;
+	private double springCoefficient;
 
-	private double gravity = 9.81;
+	private boolean renderAllSprings;
 
-	private int gridColumnCount = 33;
-	private int gridRowCount = 33;
+	private boolean renderSprings;
 
-	private double maxParticleSpeed = 20;
-	private int forkJoinBatchSize = 1000;
+	private boolean renderMasses;
+	
+	private double particleMass;
+
+	private double mouseDragZDepth;
+
+	private double verticalRestLengthFactor; 
+	private double horizontalRestLengthFactor;
+
+	private boolean lightSurfaces;
+	
+	private Vector4 lightPosition;
+	private Color lightColor;
+
+	private double gravity;
+
+	private int gridColumnCount;
+	private int gridRowCount;
+
+	private double maxParticleSpeed;
+	private int forkJoinBatchSize;
+	
+	public static interface Hint {
+	}
+	
+	public static final class SliderHint implements Hint
+	{
+		private final double minValue;
+		private final double maxValue;
+		
+		protected SliderHint(double minValue, double maxValue) 
+		{
+			this.minValue = minValue;
+			this.maxValue = maxValue;
+		}
+		
+		@Override
+		public String toString() {
+			return "SliderHint [minValue=" + minValue + ", maxValue="+ maxValue + "]";
+		}
+
+		public double getMinValue() { return minValue; }
+		public double getMaxValue() { return maxValue; }
+	}
 	
 	/**
 	 * Method that is never considered a parameter getter/setter.
 	 *
-	 * @author tobias.gierke@voipfuture.com
+	 * @author tobias.gierke@code-sourcery.de
 	 */
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.METHOD)
 	public @interface IgnoreMethod { }
 	
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.METHOD)
+	public @interface ValueRange
+	{ 
+		public double minValue();
+		public double maxValue();
+	}	
+	
+	/**
+	 * A simulation parameter.
+	 *
+	 * @author tobias.gierke@code-sourcery.de
+	 */
 	public abstract class SimulationParameter 
 	{
 		public abstract String getName();
@@ -95,6 +137,30 @@ public class SimulationParamsBuilder {
 		public abstract boolean isWriteOnly();
 		
 		public abstract void setValue(Object value);
+		
+		@SuppressWarnings("unchecked")
+		public final <T extends Hint> List<T> getHints(Class<T> clazz) 
+		{
+			final List<T> result = new ArrayList<>();
+			for ( Hint h : getHints() ) {
+				if ( clazz.isAssignableFrom( h.getClass() ) ) {
+					result.add( (T) h );
+				}
+			}			
+			return result;
+		}
+		
+		public List<Hint> getHints() {
+			return Collections.emptyList();
+		}
+		
+		public double getMinValue() {
+			return -Double.MAX_VALUE;
+		}
+		
+		public double getMaxValue() {
+			return Double.MAX_VALUE;
+		}		
 		
 		@Override
 		public final boolean equals(Object obj) 
@@ -111,6 +177,48 @@ public class SimulationParamsBuilder {
 		}
 	}
 	
+	public SimulationParamsBuilder() {
+		reset();
+	}
+	
+	public void reset() {
+		xResolution = 1000;
+		yResolution = 1000;
+
+		frameSleepTime = 20;
+		
+		debugPerformance=false;
+		
+		springDampening=0.1;
+		springCoefficient=0.1;	
+
+		renderAllSprings = false;
+
+		renderSprings = false;
+
+		renderMasses = false;
+		
+		particleMass = 1.0;
+
+		mouseDragZDepth = -100;
+
+		verticalRestLengthFactor = 1;
+		horizontalRestLengthFactor = 1;
+
+		lightSurfaces = true;
+		
+		lightPosition = new Vector4(xResolution / 3.5, yResolution / 2.5, -200);
+		lightColor = new Color(50, 50, 200);
+
+		gravity = 9.81;
+
+		gridColumnCount = 33;
+		gridRowCount = 33;
+
+		maxParticleSpeed = 20;
+		forkJoinBatchSize = 1000;		
+	}
+	
 	public static void main(String[] args) {
 		final List<SimulationParameter> parameters = new SimulationParamsBuilder().getParameters();
 		System.out.println( StringUtils.join( parameters , "\n" ) );
@@ -119,10 +227,10 @@ public class SimulationParamsBuilder {
 	public SimulationParameters build() 
 	{
 		return new SimulationParameters(xResolution, yResolution, 
-				frameSleepTime, renderAllLines, renderSprings, renderMasses, mouseDragZDepth, 
+				frameSleepTime, renderAllSprings, renderSprings, renderMasses, mouseDragZDepth, 
 				verticalRestLengthFactor, horizontalRestLengthFactor, 
 				lightSurfaces, lightPosition, lightColor, gravity, 
-				gridColumnCount, gridRowCount, maxParticleSpeed, forkJoinBatchSize,springCoefficient , springDampening,particleMass);
+				gridColumnCount, gridRowCount, maxParticleSpeed, forkJoinBatchSize,springCoefficient , springDampening,particleMass,debugPerformance);
 	}
 	
 	@IgnoreMethod
@@ -165,6 +273,12 @@ public class SimulationParamsBuilder {
 				throw new RuntimeException("Internal error, different return/parameter types for getter/setter methods "+setter+" and "+getter);
 			}
 			
+			final List<Hint> hints = new ArrayList<>();
+			hints.addAll( setter != null ? getParameterHints( setter ) : Collections.<Hint>emptySet() );
+			if ( getter != null && ! getParameterHints( getter ).isEmpty() ) {
+				throw new RuntimeException("@ValueRange annotation may only be placed on setter methods, offender: "+getter);
+			}
+			
 			final Class<?> type = getterType != null ? getterType : setterType;
 			
 			result.add( new SimulationParameter() 
@@ -178,6 +292,11 @@ public class SimulationParamsBuilder {
 				@Override
 				public boolean isWriteOnly() {
 					return getter == null;
+				}
+				
+				@Override
+				public List<Hint> getHints() {
+					return hints;
 				}
 				
 				@Override
@@ -200,6 +319,9 @@ public class SimulationParamsBuilder {
 					} 
 					catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) 
 					{
+						if ( e instanceof IllegalArgumentException ) {
+							throw new IllegalArgumentException("Method "+setter+", got: "+value.getClass()+" , expected: "+setter.getParameterTypes()[0] );
+						}
 						throw new RuntimeException(e);
 					}
 				}
@@ -242,9 +364,25 @@ public class SimulationParamsBuilder {
 		return result;
 	}
 	
+	private List<Hint> getParameterHints(Method m) 
+	{
+		final List<Hint> result = new ArrayList<>();
+		ValueRange hint = m.getAnnotation(ValueRange.class);
+		if ( hint != null ) 
+		{
+			double minValue = hint.minValue();
+			double maxValue = hint.maxValue();
+			if ( minValue > maxValue ) {
+				throw new IllegalArgumentException("minValue > maxValue in @ValueRange annotation on "+m);
+			}
+			result.add( new SliderHint( minValue , maxValue ) );
+		}
+		return result;
+	}
+	
 	private String extractParameterName(Method m) 
 	{
-		final String name;
+		String name;
 		if ( m.getName().startsWith("set") ||  m.getName().startsWith("get")) {
 			name = m.getName().substring(3);
 		} 
@@ -254,7 +392,31 @@ public class SimulationParamsBuilder {
 		} else {
 			throw new IllegalArgumentException("Invalid method name: "+m); 
 		}
-		return Character.toUpperCase( name.charAt(0) )+name.substring(1);
+		name = Character.toUpperCase( name.charAt(0) )+name.substring(1);
+		final List<String> split = new ArrayList<>();
+		final StringBuffer buffer = new StringBuffer();
+		for ( char s : name.toCharArray() ) 
+		{
+			if ( Character.isUpperCase( s ) ) 
+			{
+				if ( buffer.length() > 1 ) {
+					split.add( buffer.toString() );
+					buffer.setLength( 0 );
+					buffer.append( Character.toLowerCase(s) );
+					continue;
+				}
+			}
+			if ( split.isEmpty() ) {
+				buffer.append( s );
+			} else {
+				buffer.append( Character.toLowerCase( s ) );
+			}
+		}
+		if ( buffer.length() > 0 ) {
+			split.add( buffer.toString() );
+		}
+		
+		return StringUtils.join( split , " " );
 	}
 	
 	private boolean isParameterSetter(Method m) 
@@ -306,16 +468,17 @@ public class SimulationParamsBuilder {
 		return frameSleepTime;
 	}
 
+    @ValueRange(minValue=0,maxValue=500)
 	public void setFrameSleepTime(int frameSleepTime) {
 		this.frameSleepTime = frameSleepTime;
 	}
 
-	public boolean isRenderAllLines() {
-		return renderAllLines;
+	public boolean isRenderAllSpring() {
+		return renderAllSprings;
 	}
 
-	public void setRenderAllLines(boolean renderAllLines) {
-		this.renderAllLines = renderAllLines;
+	public void setRenderAllSpring(boolean renderAllSprings) {
+		this.renderAllSprings = renderAllSprings;
 	}
 
 	public boolean isRenderSprings() {
@@ -338,6 +501,7 @@ public class SimulationParamsBuilder {
 		return mouseDragZDepth;
 	}
 
+	@ValueRange(minValue=-200,maxValue=0)
 	public void setMouseDragZDepth(double mouseDragZDepth) {
 		this.mouseDragZDepth = mouseDragZDepth;
 	}
@@ -346,6 +510,7 @@ public class SimulationParamsBuilder {
 		return verticalRestLengthFactor;
 	}
 
+	@ValueRange(minValue=0.01,maxValue=5.0)	
 	public void setVerticalRestLengthFactor(double verticalRestLengthFactor) {
 		this.verticalRestLengthFactor = verticalRestLengthFactor;
 	}
@@ -354,6 +519,7 @@ public class SimulationParamsBuilder {
 		return horizontalRestLengthFactor;
 	}
 
+	@ValueRange(minValue=0.01,maxValue=5.0)
 	public void setHorizontalRestLengthFactor(double horizontalRestLengthFactor) {
 		this.horizontalRestLengthFactor = horizontalRestLengthFactor;
 	}
@@ -386,6 +552,7 @@ public class SimulationParamsBuilder {
 		return gravity;
 	}
 
+	@ValueRange(minValue=0,maxValue=50)
 	public void setGravity(double gravity) {
 		this.gravity = gravity;
 	}
@@ -394,6 +561,7 @@ public class SimulationParamsBuilder {
 		return gridColumnCount;
 	}
 
+	@ValueRange(minValue=2,maxValue=500)
 	public void setGridColumnCount(int gridColumnCount) {
 		this.gridColumnCount = gridColumnCount;
 	}
@@ -402,6 +570,7 @@ public class SimulationParamsBuilder {
 		return gridRowCount;
 	}
 
+    @ValueRange(minValue=2,maxValue=500)
 	public void setGridRowCount(int gridRowCount) {
 		this.gridRowCount = gridRowCount;
 	}
@@ -410,6 +579,7 @@ public class SimulationParamsBuilder {
 		return maxParticleSpeed;
 	}
 
+    @ValueRange(minValue=0,maxValue=50)
 	public void setMaxParticleSpeed(double maxParticleSpeed) {
 		this.maxParticleSpeed = maxParticleSpeed;
 	}
@@ -418,6 +588,7 @@ public class SimulationParamsBuilder {
 		return forkJoinBatchSize;
 	}
 
+    @ValueRange(minValue=0,maxValue=2000)
 	public void setForkJoinBatchSize(int forkJoinBatchSize) {
 		this.forkJoinBatchSize = forkJoinBatchSize;
 	}
@@ -426,6 +597,7 @@ public class SimulationParamsBuilder {
 		return springDampening;
 	}
 
+    @ValueRange(minValue=0,maxValue=1)
 	public void setSpringDampening(double springDampening) {
 		this.springDampening = springDampening;
 	}
@@ -434,6 +606,7 @@ public class SimulationParamsBuilder {
 		return springCoefficient;
 	}
 
+    @ValueRange(minValue=0,maxValue=0.3)
 	public void setSpringCoefficient(double springCoefficient) {
 		this.springCoefficient = springCoefficient;
 	}
@@ -442,7 +615,16 @@ public class SimulationParamsBuilder {
 		return particleMass;
 	}
 
+    @ValueRange(minValue=0,maxValue=10)
 	public void setParticleMass(double particleMass) {
 		this.particleMass = particleMass;
+	}
+
+	public boolean isDebugPerformance() {
+		return debugPerformance;
+	}
+
+	public void setDebugPerformance(boolean debugPerformance) {
+		this.debugPerformance = debugPerformance;
 	}
 }

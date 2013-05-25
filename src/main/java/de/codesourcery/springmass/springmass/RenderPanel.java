@@ -61,7 +61,6 @@ public final class RenderPanel extends Canvas {
 			@Override
 			public void componentResized(ComponentEvent e) 
 			{
-				System.out.println("Panel size changed: "+getSize());
 				synchronized(BUFFER_LOCK) 
 				{
 					createBufferStrategy(3);
@@ -163,14 +162,14 @@ public final class RenderPanel extends Canvas {
 		}
 	}		
 
-	public void doRender(boolean debugPerformance) 
+	public void doRender() 
 	{
 		synchronized( BUFFER_LOCK ) 
 		{
 			BufferStrategy strategy = getBufferStrategy();
 			Graphics graphics = strategy.getDrawGraphics();
 			try {
-				render( graphics , debugPerformance );
+				render( graphics );
 			} finally {
 				graphics.dispose();
 			}
@@ -180,7 +179,7 @@ public final class RenderPanel extends Canvas {
 		//		SwingUtilities.invokeLater( r );
 	}
 
-	private void render(Graphics g,boolean debugPerformance) 
+	private void render(Graphics g) 
 	{
 		long setupTime = 0;
 		long renderingTime = 0;
@@ -290,7 +289,7 @@ public final class RenderPanel extends Canvas {
 				}
 
 				frameCounter++;
-				if ( debugPerformance && (frameCounter%30) == 0 ) {
+				if ( parameters.isDebugPerformance() && (frameCounter%30) == 0 ) {
 					System.out.println("Rendering time breakdown: Setup time: "+setupTime+" ms / Drawing: "+renderingTime);
 				}
 			} finally {
