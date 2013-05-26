@@ -55,6 +55,8 @@ public class SimulationParamsBuilder {
 
 	private boolean renderAllSprings;
 
+	private double maxSpringLength;
+	
 	private boolean renderSprings;
 
 	private boolean renderMasses;
@@ -78,6 +80,8 @@ public class SimulationParamsBuilder {
 
 	private double maxParticleSpeed;
 	private int forkJoinBatchSize;
+	
+	private double integrationTimeStep;
 	
 	public static interface Hint {
 	}
@@ -189,8 +193,8 @@ public class SimulationParamsBuilder {
 		
 		debugPerformance=false;
 		
-		springDampening=0.2;
-		springCoefficient=0.01;	
+		springDampening=3;
+		springCoefficient=0.3;	
 
 		renderAllSprings = true;
 
@@ -211,11 +215,15 @@ public class SimulationParamsBuilder {
 
 		gravity = 50;
 
-		gridColumnCount = 13;
-		gridRowCount = 13;
+		gridColumnCount = 55;
+		gridRowCount = 33;
 
 		maxParticleSpeed = 30;
 		forkJoinBatchSize = 1000;		
+		
+		integrationTimeStep = 50;
+		
+		maxSpringLength = -1;
 		
 		updateLightPosition();
 	}
@@ -231,7 +239,26 @@ public class SimulationParamsBuilder {
 				frameSleepTime, renderAllSprings, renderSprings, renderMasses, mouseDragZDepth, 
 				verticalRestLengthFactor, horizontalRestLengthFactor, 
 				lightSurfaces, lightPosition, lightColor, gravity, 
-				gridColumnCount, gridRowCount, maxParticleSpeed, forkJoinBatchSize,springCoefficient , springDampening,particleMass,debugPerformance);
+				gridColumnCount, gridRowCount, maxParticleSpeed, forkJoinBatchSize,springCoefficient , springDampening,particleMass,debugPerformance,
+				integrationTimeStep,maxSpringLength);
+	}
+	
+	public double getMaxSpringLength() {
+		return maxSpringLength;
+	}
+	
+	@ValueRange(minValue=-1,maxValue=200)
+	public void setMaxSpringLength(double maxSpringLength) {
+		this.maxSpringLength = maxSpringLength;
+	}
+	
+	public double getIntegrationTimeStep() {
+		return integrationTimeStep;
+	}
+	
+	@ValueRange(minValue=2,maxValue=200)
+	public void setIntegrationTimeStep(double integrationTimeStep) {
+		this.integrationTimeStep = integrationTimeStep;
 	}
 	
 	@IgnoreMethod
@@ -598,7 +625,7 @@ public class SimulationParamsBuilder {
 		return springDampening;
 	}
 
-    @ValueRange(minValue=0,maxValue=1)
+    @ValueRange(minValue=0,maxValue=10)
 	public void setSpringDampening(double springDampening) {
 		this.springDampening = springDampening;
 	}
@@ -607,7 +634,7 @@ public class SimulationParamsBuilder {
 		return springCoefficient;
 	}
 
-    @ValueRange(minValue=0,maxValue=0.3)
+    @ValueRange(minValue=0,maxValue=1)
 	public void setSpringCoefficient(double springCoefficient) {
 		this.springCoefficient = springCoefficient;
 	}

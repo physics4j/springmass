@@ -17,6 +17,7 @@ package de.codesourcery.springmass.springmass;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import de.codesourcery.springmass.math.Vector4;
@@ -31,6 +32,8 @@ public class Mass {
 	public final Color color;
 	
 	public final List<Spring> springs = new ArrayList<>();
+	
+	public final Vector4 force = new Vector4(0,0,0,1);
 	
 	private byte flags;
 	
@@ -72,6 +75,10 @@ public class Mass {
 	@Override
 	public String toString() {
 		return "Mass( "+currentPosition+" )";
+	}
+	
+	public boolean hasSprings() {
+		return ! springs.isEmpty();
 	}
 	
 	public List<Spring> getLeftSprings() 
@@ -134,5 +141,16 @@ public class Mass {
 
 	public double squaredDistanceTo(Vector4 other) {
 		return currentPosition.distanceTo( other );
+	}
+
+	public void removeSpring(Spring s) 
+	{
+		if ( s.m1 == this ) 
+		{
+			s.m2.springs.remove( s );
+		} else {
+			s.m1.springs.remove(s);
+		}
+		springs.remove( s );
 	}
 }

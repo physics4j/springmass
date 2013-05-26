@@ -184,11 +184,7 @@ public class Main extends Frame {
 
 					if ( nearest != null ) 
 					{
-						final Vector4 edge = nearest.currentPosition.minus(new Vector4(1,0,0 ) );
-						for ( Spring s : system.getIntersectingSprings( edge.x , nearest.currentPosition , 100 ) )
-						{
-							system.removeSpring( s);
-						}
+						system.removeLeftSprings( nearest );
 						renderPanel.doRender();
 					}
 				}

@@ -36,6 +36,7 @@ public final class SimulationParameters
 	
 	private final double springDampening;
 	private final double springCoefficient;
+	private final double maxSpringLength;
 
 	private final double mouseDragZDepth;
 
@@ -55,44 +56,9 @@ public final class SimulationParameters
 	
 	private final double maxParticleSpeed;
 	private final int forkJoinBatchSize;
-
-	public SimulationParameters() 
-	{
-		xResolution = 1000;
-		yResolution = 1000;
-
-		frameSleepTime = 20;
-
-		renderAllSprings = false;
-
-		debugPerformance = false;
-		
-		renderSprings = false;
-
-		renderMasses = false;
-
-		mouseDragZDepth = -100;
-
-		particleMass = 1.0;
-		
-		springDampening = springCoefficient = 0.1;
-		
-		verticalRestLengthFactor = 1;
-		horizontalRestLengthFactor = 1;
-
-		lightSurfaces = true;
-		lightPosition = new Vector4(getXResolution() / 3.5, getYResolution() / 2.5, -200);
-		lightColor = new Vector4(.2, .2, 0.8);
-
-		gravity=9.81;
-		
-		gridColumnCount = 33;
-		gridRowCount = 33;
-		
-		maxParticleSpeed = 20;
-		forkJoinBatchSize = 1000;		
-	}
 	
+	private final double integratonTimeStep;
+
 	public SimulationParameters(int xResolution, int yResolution,
 			int frameSleepTime, boolean renderAllLines, boolean renderSprings,
 			boolean renderMasses, double mouseDragZDepth,
@@ -101,7 +67,7 @@ public final class SimulationParameters
 			double gravity, int gridColumnCount, int gridRowCount,
 			double maxParticleSpeed, int forkJoinBatchSize,
 			double springCoefficient,double springDampening,double particleMass,
-			boolean debugPerformance) 
+			boolean debugPerformance,double integratonTimeStep,double maxSpringLength) 
 	{
 		this.xResolution = xResolution;
 		this.yResolution = yResolution;
@@ -122,8 +88,14 @@ public final class SimulationParameters
 		this.maxParticleSpeed = maxParticleSpeed;
 		this.forkJoinBatchSize = forkJoinBatchSize;
 		this.springCoefficient = springCoefficient;
+		this.maxSpringLength = maxSpringLength;
 		this.springDampening = springDampening;
 		this.particleMass = particleMass;
+		this.integratonTimeStep = integratonTimeStep;
+	}
+	
+	public double getIntegratonTimeStep() {
+		return integratonTimeStep;
 	}
 	
 	public double getParticleMass() {
@@ -208,5 +180,9 @@ public final class SimulationParameters
 
 	public boolean isDebugPerformance() {
 		return debugPerformance;
+	}
+
+	public double getMaxSpringLength() {
+		return maxSpringLength;
 	}
 }

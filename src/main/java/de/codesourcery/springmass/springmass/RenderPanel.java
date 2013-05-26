@@ -220,10 +220,15 @@ public final class RenderPanel extends Canvas {
 					{
 						for ( int x = 0 ; x < columns-1 ; x++) 
 						{
-							Vector4 p0 = masses[x][y].currentPosition;
-							Vector4 p1 = masses[x+1][y].currentPosition;
-							Vector4 p2 = masses[x][y+1].currentPosition;
-							Vector4 p3 = masses[x+1][y+1].currentPosition;
+							Mass m0 = masses[x][y];
+							Mass m1 = masses[x+1][y];
+							Mass m2 = masses[x][y+1];
+							Mass m3 = masses[x+1][y+1];
+							
+							Vector4 p0 = m0.currentPosition;
+							Vector4 p1 = m1.currentPosition;
+							Vector4 p2 = m2.currentPosition;
+							Vector4 p3 = m3.currentPosition;
 
 							triangles.add( new Triangle(p0,p1,p2) );
 							triangles.add( new Triangle(p1,p3,p2) );

@@ -15,12 +15,10 @@
  */
 package de.codesourcery.springmass.springmass;
 
+import java.awt.Point;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.locks.ReentrantLock;
@@ -31,12 +29,13 @@ public class SpringMassSystem {
 
 	private static final ForkJoinPool pool = new ForkJoinPool();	
 	private final ReentrantLock lock = new ReentrantLock();	
-	
+
 	private final Mass[][] massArray;
-	public List<Mass> masses = new ArrayList<>();
+	public final List<Mass> masses = new ArrayList<>();
+	public final List<Spring> springs = new ArrayList<>();
 
 	private SimulationParameters params;
-	
+
 	public SpringMassSystem(SimulationParameters params,Mass[][] massArray) {
 		this.params = params;
 		this.massArray = massArray;
@@ -48,14 +47,14 @@ public class SpringMassSystem {
 			}
 		}
 	}
-	
+
 	public Mass[][] getMassArray() 
 	{
 		return massArray;
 	}
-	
+
 	public Mass getNearestMass(Vector4 pos,double maxDistanceSquared) {
-		
+
 		Mass best = null;
 		double closestDistance = Double.MAX_VALUE; 
 		for ( Mass m : masses ) 
@@ -69,225 +68,218 @@ public class SpringMassSystem {
 		}
 		return closestDistance > maxDistanceSquared ? null : best;
 	}
-	
-	public Set<Spring> getIntersectingSprings(double xCoordinate,Vector4 point,double maxDistance) 
-	{
-		final Set<Spring> result = new HashSet<>();
-		for ( Mass m : masses ) 
-		{
-			for ( Spring s : m.springs ) 
-			{
-				if ( ( s.m1.currentPosition.x <= xCoordinate && s.m2.currentPosition.x >= xCoordinate ) ||
-					   s.m2.currentPosition.x <= xCoordinate && s.m1.currentPosition.x >= xCoordinate ) 
-				{  						
-					if ( s.distanceTo( point) <= maxDistance) {
-						result.add( s );
-					}
-				}
-			}
-		}
-		return result;
+
+	public List<Spring> getSprings() {
+		return springs;
 	}
-	
-	public Set<Spring> getSprings() {
-		
-		final Set<Spring> result = new HashSet<Spring>();
-		for ( Mass m : masses ) {
-			result.addAll( m.springs );
-		}
-		return result;
-	}
-	
-	public synchronized void removeSpring(Spring s) 
-	{
-		s.m1.springs.remove( s );
-		s.m2.springs.remove( s );
-	}
-	
+
 	public void addSpring(Spring s) {
 		s.m1.addSpring( s );
+		springs.add( s );
 	}
 	
+	public void removeSpring(Spring s) 
+	{
+		for (Iterator<Spring> it = springs.iterator(); it.hasNext();) 
+		{
+			Spring actual = it.next();
+			if ( actual == s ) 
+			{
+				it.remove();
+				s.m1.removeSpring( s );
+				return;
+			}
+		}
+	}
+
 	public void lock() {
 		lock.lock();
 	}
-	
+
 	public void unlock() {
 		lock.unlock();
 	}
-	
+
 	public void step() 
 	{
 		lock();
 		try 
 		{
 			stepMultithreaded();
+//			stepSingleThreaded();
 		} finally {
 			unlock();
 		}
-		 
+	}
+
+	private void stepSingleThreaded() 
+	{
+		for ( Spring s : getSprings() ) 
+		{
+			Vector4 force = s.calcForce();
+			s.m1.force.plusInPlace( force );
+			s.m2.force.minusInPlace( force );
+		}
+		
+		final Vector4 gravity = new Vector4(0,1,0).multiply(params.getGravity());
+		applyForces( masses , gravity );
 	}
 	
 	private void stepMultithreaded() 
 	{
-		MyTask task = new MyTask( masses );
-		pool.submit( task );
-		
-		final List<TaskResult> results = task.join();
-		
-		// 
-		
-		/* Apply forces.
-		 * 
-		 * F = total of forces acting on this point
-		 * T = Time step to update over
-		 * X0 is the previous position, X1 is the current position
-		 * XT = X1
-		 * X1 += (X1-X0) + F/M*T*T
-		 * X0 = XT		 
-		 */
-		final double deltaT = 6;
-		final double deltaTSquared = deltaT*deltaT;		
-		Vector4 gravity = new Vector4(0,1,0).multiply(params.getGravity());
-		for ( TaskResult entry : results )
+		final double maxSpringLength = params.getMaxSpringLength();
+		final boolean checkLength = maxSpringLength > 0;
+		for ( Iterator<Spring> it = springs.iterator() ; it.hasNext() ; )
 		{
-		   final Mass mass = entry.m;
-		   
-		   final Vector4 sumForces = entry.sumForces;
-		   // apply gravity
-		   sumForces.plusInPlace( gravity );
-		   
-		   final Vector4 tmp = new Vector4(mass.currentPosition);
-		   
-		   final Vector4 posDelta = mass.currentPosition.minus(mass.previousPosition);
-		   
-		   sumForces.multiplyInPlace( 1.0 / (mass.mass*deltaTSquared) );
-		   posDelta.plusInPlace( sumForces );
-		   
-		   posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
-		   mass.currentPosition.plusInPlace( posDelta );
-		   if ( mass.currentPosition.y > params.getYResolution() ) {
-			   mass.currentPosition.y = params.getYResolution();
-		   }
-		   mass.previousPosition = tmp;
-		}
-	}
-	
-	private void stepSingleThreaded() 
-	{
-		final IdentityHashMap<Mass, Vector4> newForces=new IdentityHashMap<>();
-		
-		for ( Mass m : masses ) 
-		{
-			if ( ! m.isFixed() && ! m.isSelected() ) 
+			final Spring s = it.next();
+			if ( checkLength && s.length() > maxSpringLength && !(s.m1.isSelected() || s.m2.isSelected() ) )
 			{
-				final Vector4 internalForces = m.calculateNeighbourForces();
-				newForces.put( m , internalForces );
+				it.remove();
+				s.m1.removeSpring( s );
+				continue;
 			}
+			
+			Vector4 force = s.calcForce();
+			s.m1.force.plusInPlace( force );
+			s.m2.force.minusInPlace( force );
 		}
 		
-		// 
-		
-		/* Apply forces.
-		 * 
-		 * F = total of forces acting on this point
-		 * T = Time step to update over
-		 * X0 is the previous position, X1 is the current position
-		 * XT = X1
-		 * X1 += (X1-X0) + F/M*T*T
-		 * X0 = XT		 
-		 */
-		final double deltaT = 6;
-		final double deltaTSquared = deltaT*deltaT;
-		
-		Vector4 gravity = new Vector4(0,1,0).multiply(9.81);
-		for ( Entry<Mass, Vector4> entry : newForces.entrySet() ) 
-		{
-		   final Mass mass = entry.getKey();
-		   
-		   final Vector4 sumForces = entry.getValue();
-		   // apply gravity
-		   sumForces.plusInPlace( gravity );
-		   
-		   final Vector4 tmp = new Vector4(mass.currentPosition);
-		   
-		   final Vector4 posDelta = mass.currentPosition.minus(mass.previousPosition);
-		   
-		   sumForces.multiplyInPlace( 1.0 / (mass.mass*deltaTSquared) );
-		   posDelta.plusInPlace( sumForces );
-		   
-		   posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
-		   mass.currentPosition.plusInPlace( posDelta );
-		   mass.previousPosition = tmp;
-		}
-	}
+		final Vector4 gravity = new Vector4(0,1,0).multiply(params.getGravity());
+		MyTask task = new MyTask( masses , gravity );
+		pool.submit( task );
+
+		task.join();
+	}	
 	
-	protected static final class TaskResult 
+	private void applyForces(List<Mass> masses,Vector4 gravity) 
 	{
-		public final Mass m;
-		public final Vector4 sumForces;
-		protected TaskResult(Mass m, Vector4 sumForces) {
-			this.m = m;
-			this.sumForces = sumForces;
-		}
+		final double deltaTSquared = params.getIntegratonTimeStep();
 		
+		for ( Mass mass : masses)
+		{
+			if ( mass.isFixed() || mass.isSelected() ) {
+				continue;
+			}
+			final Vector4 sumForces = mass.force;
+			
+			// apply gravity
+			sumForces.plusInPlace( gravity );
+
+			final Vector4 tmp = new Vector4(mass.currentPosition);
+
+			final Vector4 posDelta = mass.currentPosition.minus(mass.previousPosition);
+
+			Vector4 dampening = posDelta.multiply( params.getSpringDampening() );
+			sumForces.minusInPlace( dampening );
+			
+			sumForces.multiplyInPlace( 1.0 / (mass.mass*deltaTSquared) );
+			posDelta.plusInPlace( sumForces );
+
+			posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
+			mass.currentPosition.plusInPlace( posDelta );
+			
+			if ( mass.currentPosition.y > params.getYResolution() ) {
+				mass.currentPosition.y = params.getYResolution();
+			}
+			mass.previousPosition = tmp;
+			
+			mass.force.set(0, 0, 0);
+		}		
+	}
+
+	protected final class MyTask extends ForkJoinTask<Void> {
+
+		private final List<Mass> masses;
+		private final Vector4 gravity; 
+
+		public MyTask(List<Mass> masses,Vector4 gravity) {
+			this.masses = masses;
+			this.gravity = gravity;
+		}
+
+		@Override
+		public Void getRawResult() {
+			return null;
+		}
+
+		@Override
+		protected void setRawResult(Void value) {
+		}
+
+		protected final boolean exec() {
+			compute();
+			return true;
+		}
+
+		/**
+		 * The main computation performed by this task.
+		 */
+		protected void compute() 
+		{
+			final int len = masses.size();
+			if (len < params.getForkJoinBatchSize() ) 
+			{
+				applyForces( masses , gravity );
+				return;
+			}
+
+			final int split = len / 2;
+
+			MyTask task1 = new MyTask( masses.subList( 0 , split ) , gravity );
+			MyTask task2 = new MyTask( masses.subList( split , masses.size() ) , gravity ) ;
+			invokeAll( task1,task2);
+		}
+	}
+
+	public void removeLeftSprings(Mass nearest) 
+	{
+		lock();
+		try {
+			Point pos = findArrayPos(nearest);
+			final List<Spring> springs = new ArrayList<>(nearest.springs);
+			for ( Spring s : springs ) 
+			{
+				Mass other = s.m1 == nearest ? s.m2 : s.m1;
+				Point otherPos = findArrayPos(other);
+				if ( otherPos.x < pos.x ) {
+					nearest.removeSpring( s );
+				}
+			}
+			
+			if ( pos.x+1 < params.getGridColumnCount() ) 
+			{
+				Mass right = massArray[pos.x+1][pos.y];
+				final List<Spring> springs2 = new ArrayList<>(right.springs);
+				for ( Spring s : springs2 ) 
+				{
+					Mass o;
+					if ( s.m1 == right ) {
+						o = s.m2;
+					} else {
+						o = s.m1;
+					}
+					if ( findArrayPos( o ).x < pos.x ) {
+						o.removeSpring( s );
+					}
+				}
+			}
+		} 
+		finally {
+			unlock();
+		}
 	}
 	
-	protected final class MyTask extends ForkJoinTask<List<TaskResult>> {
-
-		private List<TaskResult> result= new ArrayList<>();
-		private final List<Mass> masses;
-		
-		public MyTask(List<Mass> masses) {
-			this.masses = masses;
-		}
-		
-		@Override
-		public List<TaskResult> getRawResult() {
-			return result;
-		}
-
-		@Override
-		protected void setRawResult(List<TaskResult> value) {
-		}
-		
-	    protected final boolean exec() {
-	        compute();
-	        return true;
-	    }
-	    
-	    /**
-	     * The main computation performed by this task.
-	     */
-	    protected void compute() 
-	    {
-	    	final int len = masses.size();
-	        if (len < params.getForkJoinBatchSize() ) 
-	        {
-	            computeDirectly();
-	            return;
-	        }
-	        
-	        final int split = len / 2;
-	        
-	        MyTask task1 = new MyTask( masses.subList( 0 , split ) );
-	        MyTask task2 = new MyTask( masses.subList( split , masses.size() ) ) ;
-            invokeAll( task1,task2);
-            result.addAll( task1.getRawResult() );
-            result.addAll( task2.getRawResult() );
-	    }
-
-		private void computeDirectly() 
+	private Point findArrayPos(Mass m) 
+	{
+		for ( int y = 0 ; y < params.getGridRowCount() ; y++) 
 		{
-			for ( Mass m : masses ) 
-			{
-				if ( ! m.isFixed() && ! m.isSelected() ) 
-				{
-					final Vector4 internalForces = m.calculateNeighbourForces();
-					result.add( new TaskResult( m , internalForces ) );
+			for (  int x = 0 ; x < params.getGridColumnCount() ; x++) {
+				if ( massArray[x][y] == m) {
+					return new Point(x,y);
 				}
 			}
 		}
+		throw new RuntimeException("Mass not found: "+m);
 	}
-	
+
 }
