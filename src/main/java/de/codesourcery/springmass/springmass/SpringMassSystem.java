@@ -156,6 +156,7 @@ public class SpringMassSystem {
 	{
 		final double deltaTSquared = params.getIntegratonTimeStep();
 		
+		final double maxY = params.getYResolution()*0.98;
 		for ( Mass mass : masses)
 		{
 			if ( mass.isFixed() || mass.isSelected() ) {
@@ -179,8 +180,8 @@ public class SpringMassSystem {
 			posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
 			mass.currentPosition.plusInPlace( posDelta );
 			
-			if ( mass.currentPosition.y > params.getYResolution() ) {
-				mass.currentPosition.y = params.getYResolution();
+			if ( mass.currentPosition.y > maxY) {
+				mass.currentPosition.y = maxY;
 			}
 			mass.previousPosition = tmp;
 			
