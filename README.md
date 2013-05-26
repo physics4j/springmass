@@ -1,6 +1,6 @@
 (C) 2013 tobias.gierke@code-sourcery.de
 
-Simple mass-spring simulation n Java
+Simple mass-spring simulation in Java
 -------------------------------------
 
 This project contains a simple mass-spring simulation along with a Swing App that showcases it.
