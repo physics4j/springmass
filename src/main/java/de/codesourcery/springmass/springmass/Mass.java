@@ -60,18 +60,6 @@ public class Mass {
 		}
 	}
 	
-	public Vector4 calculateNeighbourForces() {
-		
-		final Vector4 result = new Vector4();
-		for ( Spring s : springs ) 
-		{
-			final Vector4 force = s.calculateForce(this);
-//			System.out.println("Force of "+s+" on "+this+" => "+force);
-			result.plusInPlace( force );
-		}
-		return result;
-	}
-	
 	@Override
 	public String toString() {
 		return "Mass( "+currentPosition+" )";

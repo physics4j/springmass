@@ -421,6 +421,11 @@ public final class Vector4
     {
         return Math.sqrt( x*x + y*y +z*z );   
     }
+
+	public double lengthSquared() 
+	{
+		return x*x + y*y +z*z;
+	}    
     
     public double magnitude() {
         return x*x + y * y + z * z;   

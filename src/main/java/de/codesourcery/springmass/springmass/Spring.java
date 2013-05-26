@@ -48,8 +48,8 @@ public class Spring {
 		this(m1, m2, restLength, doRender, color, 0.1, 0.1 );
 	}
 
-	public double length() {
-		return m1.currentPosition.minus(m2.currentPosition).length();
+	public double lengthSquared() {
+		return m1.currentPosition.minus(m2.currentPosition).lengthSquared();
 	}
 	
 	public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color,double coefficient,double dampening) 
@@ -113,25 +113,4 @@ Here X mean cross product of vectors, and * mean dot product of vectors. This ap
 		lengthDelta.multiplyInPlace( (im1 / (im1 + im2)) * coefficient * difference );
 		return lengthDelta;
 	}	
-
-	public Vector4 calculateForce(Mass m) {
-
-		final Vector4 lengthDelta;
-		final Vector4 friction;
-		if ( m == m2 ) { // m1 -> m2
-			lengthDelta = m2.currentPosition.minus( m1.currentPosition );
-			friction = m2.currentPosition.minus( m2.previousPosition );
-		} else { // m2 -> m1
-			lengthDelta = m1.currentPosition.minus( m2.currentPosition );
-			friction = m1.currentPosition.minus( m1.previousPosition );
-		}
-
-		friction.multiplyInPlace( dampening );
-
-		final double force = -coefficient*(lengthDelta.length()-restLen);
-		
-		lengthDelta.multiplyInPlace( force );
-		lengthDelta.minusInPlace( friction );
-		return lengthDelta;
-	}
 }

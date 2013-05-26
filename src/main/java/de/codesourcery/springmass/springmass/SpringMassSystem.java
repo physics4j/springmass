@@ -127,12 +127,13 @@ public class SpringMassSystem {
 	
 	private void stepMultithreaded() 
 	{
-		final double maxSpringLength = params.getMaxSpringLength();
-		final boolean checkLength = maxSpringLength > 0;
+		double maxSpringLengthSquared = params.getMaxSpringLength();
+		final boolean checkLength = maxSpringLengthSquared > 0;
+		maxSpringLengthSquared *= maxSpringLengthSquared;
 		for ( Iterator<Spring> it = springs.iterator() ; it.hasNext() ; )
 		{
 			final Spring s = it.next();
-			if ( checkLength && s.length() > maxSpringLength && !(s.m1.isSelected() || s.m2.isSelected() ) )
+			if ( checkLength && s.lengthSquared() > maxSpringLengthSquared && !(s.m1.isSelected() || s.m2.isSelected() ) )
 			{
 				it.remove();
 				s.m1.removeSpring( s );

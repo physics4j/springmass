@@ -196,11 +196,11 @@ public class SimulationParamsBuilder {
 		springDampening=3;
 		springCoefficient=0.3;	
 
-		renderAllSprings = true;
+		renderAllSprings = false;
 
 		renderSprings = true;
 
-		renderMasses = true;
+		renderMasses = false;
 		
 		particleMass = 1.0;
 
