@@ -122,6 +122,11 @@ public final class RenderPanel extends Canvas {
 			this.z = (p0.z+p1.z+p2.z)/3;
 		}
 
+		public boolean noSideExceedsLengthSquared(double lengthSquared) 
+		{
+			return p0.distanceSquaredTo( p1 ) <= lengthSquared && p0.distanceSquaredTo( p2 ) <= lengthSquared;
+		}
+		
 		@Override
 		public int compareTo(Triangle o) 
 		{
@@ -216,6 +221,9 @@ public final class RenderPanel extends Canvas {
 				{
 					long time = -System.currentTimeMillis();
 					final List<Triangle> triangles = new ArrayList<>( rows*columns*2 );
+					final boolean checkArea = parameters.getMaxSpringLength() > 0;
+					final double maxLenSquared = parameters.getMaxSpringLength()*parameters.getMaxSpringLength();
+					
 					for ( int y = 0 ; y < rows-1 ; y++) 
 					{
 						for ( int x = 0 ; x < columns-1 ; x++) 
@@ -230,8 +238,19 @@ public final class RenderPanel extends Canvas {
 							Vector4 p2 = m2.currentPosition;
 							Vector4 p3 = m3.currentPosition;
 
-							triangles.add( new Triangle(p0,p1,p2) );
-							triangles.add( new Triangle(p1,p3,p2) );
+							Triangle t1 = new Triangle(p0,p1,p2);
+							Triangle t2 = new Triangle(p1,p3,p2);							
+							if ( checkArea ) {
+								if ( t1.noSideExceedsLengthSquared( maxLenSquared ) ) {
+									triangles.add( t1 );
+								}
+								if ( t2.noSideExceedsLengthSquared( maxLenSquared ) ) {
+									triangles.add( t2 );
+								}
+							} else {
+								triangles.add( t1 );
+								triangles.add( t2 );
+							}
 						}
 					}
 
