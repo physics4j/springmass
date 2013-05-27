@@ -16,8 +16,11 @@
 package de.codesourcery.springmass.springmass;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -28,22 +31,102 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import de.codesourcery.springmass.math.Vector4;
 
-public class SpringMassSystem {
-
+public class SpringMassSystem 
+{
     private final ReentrantLock lock = new ReentrantLock();	
+    private final ThreadPoolExecutor threadPool;
 
     private final Mass[][] massArray;
+
     public final List<Mass> masses = new ArrayList<>();
     public final List<Spring> springs = new ArrayList<>();
 
-    private final ThreadPoolExecutor threadPool;
-    
+    private SimulationParameters params;
+
+    private SpringMassSystem copiedFrom;
+    private IdentityHashMap<Mass,Mass> massMappings;
+
     protected abstract class ParallelTaskCreator<T> 
     {
         public abstract Runnable createTask(List<T> chunk,CountDownLatch taskFinishedLatch);
     }    
 
-    private SimulationParameters params;
+    public SpringMassSystem createCopy(SpringMassSystem original) 
+    {
+        lock();
+        try 
+        {
+            final Mass[][] arrayCopy = new Mass[ params.getGridColumnCount() ][];
+            for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) 
+            {
+                arrayCopy[x] = new Mass[ params.getGridRowCount() ];
+            }
+
+            // clone particles
+            massMappings = new IdentityHashMap<>();
+            for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) 
+            {
+                for ( int y = 0 ; y < params.getGridRowCount() ; y++ ) 
+                {        
+                    final Mass mOrig = massArray[x][y];
+                    final Mass mCopy = mOrig.createCopyWithoutSprings( mOrig.id*2);
+                    arrayCopy[x][y]=mCopy;
+                    massMappings.put( mOrig , mCopy );
+                }
+            }
+
+            final SpringMassSystem copy = new SpringMassSystem( this.params , arrayCopy );
+            copy.copiedFrom = original;
+
+            // add springs
+            for ( Spring spring : springs ) 
+            {
+                Mass copy1 = massMappings.get( spring.m1 );
+                Mass copy2 = massMappings.get( spring.m2 );
+                copy.addSpring( spring.createCopy( copy1 , copy2 ) );
+            }
+            return copy;
+        } finally {
+            unlock();
+        }
+    }
+
+    public void updateFromOriginal() 
+    {
+        lock();
+        try 
+        {
+            copiedFrom.lock();
+            try 
+            {
+                // remove all springs
+                springs.clear();
+
+                // copy positions and flags
+                for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) 
+                {
+                    for ( int y = 0 ; y < params.getGridRowCount() ; y++ ) 
+                    {
+                        final Mass original = copiedFrom.massArray[x][y];                
+                        final Mass clone = this.massArray[x][y];
+                        clone.copyPositionAndFlagsFrom( original );
+
+                        // add new springs
+                        for ( Spring spring : original.springs ) 
+                        {
+                            Mass copy1 = massMappings.get( spring.m1 );
+                            Mass copy2 = massMappings.get( spring.m2 );                    
+                            addSpring( spring.createCopy( copy1,copy2 ) ); 
+                        }
+                    }
+                }  
+            } finally {
+                copiedFrom.unlock();
+            }
+        } finally {
+            unlock();
+        }
+    }
 
     public SpringMassSystem(SimulationParameters params,Mass[][] massArray) 
     {
@@ -197,11 +280,11 @@ public class SpringMassSystem {
                             taskFinishedLatch.countDown();
                         }
                     }
-                    
+
                 };
             }
         };
-        
+
         forEachParallel( springs,  creator ,  params.getForkJoinBatchSize() );        
     }    
 
@@ -226,7 +309,7 @@ public class SpringMassSystem {
                 };
             }
         };
-        
+
         forEachParallel( masses,  creator ,  params.getForkJoinBatchSize() );
     }
 
@@ -273,16 +356,16 @@ public class SpringMassSystem {
             mass.previousPosition = tmp;
         }
     }    
-    
+
     private <T> void forEachParallel(List<T> data,ParallelTaskCreator<T> taskCreator,int chunkSize) {
-        
+
         final List<List<T>> chunks = splitList( data , chunkSize );
         final CountDownLatch latch = new CountDownLatch(chunks.size());
         for ( List<T> chunk : chunks )
         {
             threadPool.submit( taskCreator.createTask( chunk , latch ) );
         }
-        
+
         try 
         {
             latch.await();
@@ -292,12 +375,12 @@ public class SpringMassSystem {
             throw new RuntimeException(e);
         }
     }
-    
+
     private <T> List<List<T>> splitList(final List<T> list,final int chunkSize) 
     {
         final List<List<T>> result = new ArrayList<List<T>>();
         final int listSize = list.size();
-        
+
         for ( int currentIndex = 0 ; currentIndex < listSize ; currentIndex += chunkSize ) {
             int end=currentIndex+chunkSize;
             if ( end > listSize ) {

@@ -19,7 +19,7 @@ import java.awt.Color;
 
 import de.codesourcery.springmass.math.Vector4;
 
-public class Spring {
+public final class Spring {
 
     public final Mass m1;
     public final Mass m2;
@@ -40,6 +40,10 @@ public class Spring {
     
     public Vector4 force = new Vector4();
 
+    public Spring createCopy(Mass newM1,Mass newM2 ) {
+        return new Spring(newM1, newM2, restLen, doRender, color, coefficient);
+    }
+    
     public Spring(Mass m1, Mass m2,double restLength) {
         this(m1,m2,restLength,false);
     }
@@ -51,14 +55,14 @@ public class Spring {
 
     public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color) 
     {
-        this(m1, m2, restLength, doRender, color, 0.1, 0.1 );
+        this(m1, m2, restLength, doRender, color, 0.1);
     }
 
     public double lengthSquared() {
         return m1.currentPosition.minus(m2.currentPosition).lengthSquared();
     }
 
-    public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color,double coefficient,double dampening) 
+    public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color,double coefficient) 
     {
         if ( m1 == null ) {
             throw new IllegalArgumentException("m1 must not be null");
@@ -119,9 +123,10 @@ Here X mean cross product of vectors, and * mean dot product of vectors. This ap
 
     public void calcForce() 
     {
-        final Vector4 lengthDelta = m1.currentPosition.minus( m2.currentPosition ); 
-        final double difference = (restLen - lengthDelta.length()); 
-        lengthDelta.multiplyInPlace( m1m2Ratio * coefficient * difference );
-        force = lengthDelta;
+        force.set( m1.currentPosition );
+        force.minusInPlace( m2.currentPosition );
+        
+        final double difference = (restLen - force.length()); 
+        force.multiplyInPlace( m1m2Ratio * coefficient * difference );
     }	
 }

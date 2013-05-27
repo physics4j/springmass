@@ -509,4 +509,12 @@ public final class Vector4
 		this.y *= factor;
 		this.z *= factor;
 	}
+
+    public void set(Vector4 p)
+    {
+        this.x = p.x;
+        this.y = p.y;
+        this.z = p.z;
+        this.w = p.w;
+    }
 }

@@ -59,7 +59,6 @@ public class Main extends Frame {
 		renderPanel.addMouseMotionListener( mouseAdapter );
 
 		renderPanel.setPreferredSize( new Dimension(800,400 ) );
-		add( renderPanel );
 		
 		final JFrame controlFrame = new ControlPanel() {
 			protected void applyChanges(SimulationParameters newParameters) {
@@ -84,7 +83,9 @@ public class Main extends Frame {
 		controlFrame.addWindowListener( closeListener );
 		addWindowListener( closeListener );
 		
-		pack();
+        renderPanel.addTo( this );
+        pack();
+        
 		setVisible( true );
 		
 		controlFrame.setLocation( new Point( getLocation().x + getSize().width , getLocation().y ) );
@@ -114,14 +115,8 @@ public class Main extends Frame {
 			}
 
 			this.parameters = parameters;
-			this.simulator = new Simulator(parameters) 
-			{
-				@Override
-				protected void afterTick() 
-				{
-					renderPanel.doRender();
-				}
-			};		
+			this.simulator = new Simulator(parameters);
+			
 			if ( renderPanel != null ) {
 				renderPanel.setSimulator( simulator );
 			}
@@ -145,10 +140,10 @@ public class Main extends Frame {
 				final double gridHeight = params.getYResolution() / params.getGridRowCount();
 				final double pickDepth = Math.abs( params.getMouseDragZDepth() + 1 );
 				
-				final double radius = Math.sqrt( gridWidth*gridWidth + gridHeight*gridHeight + pickDepth*pickDepth );
+				final double radiusSquared = gridWidth*gridWidth + gridHeight*gridHeight + pickDepth*pickDepth;
 				
 				final Vector4 mousePointer = renderPanel.viewToModel( x, y );
-				return simulator.getSpringMassSystem().getNearestMass( mousePointer , radius );
+				return simulator.getSpringMassSystem().getNearestMass( mousePointer , radiusSquared );
 			}
 		}
 		
@@ -156,8 +151,6 @@ public class Main extends Frame {
 		{
 			synchronized(SIMULATOR_LOCK) 
 			{
-				final SpringMassSystem system = simulator.getSpringMassSystem();
-
 				final int button = e.getButton();
 
 				if ( button == MouseEvent.BUTTON1 || button == MouseEvent.BUTTON3 ) 
@@ -167,14 +160,12 @@ public class Main extends Frame {
 					if ( button == MouseEvent.BUTTON1 ) 
 					{
 						setSelected( nearest );
-						renderPanel.doRender();
 					} 
 					else 
 					{
 						if ( nearest != null ) 
 						{
 							nearest.setFixed( ! nearest.isFixed() );
-							renderPanel.doRender();
 						}
 					}
 				} 
@@ -210,7 +201,6 @@ public class Main extends Frame {
 					final Vector4 newPos = renderPanel.viewToModel( e.getX() , e.getY() );
 					newPos.z=parameters.getMouseDragZDepth();
 					selected.setPosition( newPos );
-					renderPanel.doRender();
 				}
 			}
 		}

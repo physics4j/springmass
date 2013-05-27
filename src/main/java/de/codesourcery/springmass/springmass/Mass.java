@@ -23,11 +23,12 @@ import de.codesourcery.springmass.math.Vector4;
 
 public class Mass {
 	
-	public Vector4 currentPosition;
-	public Vector4 previousPosition;	
+    public final int id;
+    
+	public final Vector4 currentPosition=new Vector4();
+	public Vector4 previousPosition=new Vector4();
 	
 	public final double mass;
-	
 	public final Color color;
 	
 	public final List<Spring> springs = new ArrayList<>();
@@ -43,12 +44,20 @@ public class Mass {
 	}
 	
 	public void setPosition(Vector4 p) {
-		this.currentPosition = new Vector4(p);
-		this.previousPosition = new Vector4(p);
+	    this.currentPosition.set(p);
+	    this.previousPosition.set(p);
 	}
 	
 	public double distanceTo(Mass other) {
 		return currentPosition.distanceTo( other.currentPosition );
+	}
+	
+	public Mass createCopyWithoutSprings(int newId) 
+	{
+	    Mass result = new Mass(newId,color,currentPosition,mass);
+	    result.flags = flags;
+	    result.previousPosition = new Vector4(previousPosition);
+	    return result;
 	}
 	
 	public void setFixed(boolean yesNo) 
@@ -86,16 +95,24 @@ public class Mass {
 	    return (flags & bitMask) != 0;
 	}
 	
-	public Mass(Color color,Vector4 position,double mass) {
+	public Mass(int id,Color color,Vector4 position,double mass) {
 		if (position == null) {
 			throw new IllegalArgumentException("position must not be null");
 		}
+		this.id = id;
 		this.color = color;
 		this.mass = mass;
 		setPosition(position);
 	}
 
 	public double squaredDistanceTo(Vector4 other) {
-		return currentPosition.distanceTo( other );
+		return currentPosition.squaredDistanceTo( other );
 	}
+
+    public void copyPositionAndFlagsFrom(Mass mass2)
+    {
+        this.currentPosition.set( mass2.currentPosition );
+        this.previousPosition.set( mass2.previousPosition );
+        this.flags = mass2.flags;
+    }
 }

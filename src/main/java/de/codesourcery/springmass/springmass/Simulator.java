@@ -16,7 +16,7 @@
 package de.codesourcery.springmass.springmass;
 
 
-public abstract class Simulator {
+public class Simulator {
 
 	private final SpringMassSystem system;
 	private final SimulationClock simulationClock;
@@ -40,21 +40,15 @@ public abstract class Simulator {
 				
 				stepTime += System.currentTimeMillis();
 				
-				long renderTime = -System.currentTimeMillis();
-				afterTick();
-				renderTime += System.currentTimeMillis();
-				
 				tickCounter++;
 				if ( parameters.isDebugPerformance() && (tickCounter%30) == 0 ) {
-					System.out.println("Simulation time: "+stepTime+" ms / rendering time: "+renderTime+" ms / total: "+(stepTime+renderTime)+" ms");
+					System.out.println("Simulation time: "+stepTime+" ms");
 				}
 			}
 			
 		};
 		simulationClock.start();		
 	}
-	
-	protected abstract void afterTick();
 	
 	public void start() 
 	{
@@ -68,7 +62,8 @@ public abstract class Simulator {
 	public void destroy() 
 	{
 		simulationClock.destroy();
-		try {
+		try 
+		{
             system.destroy();
         } 
 		catch (InterruptedException e) 
