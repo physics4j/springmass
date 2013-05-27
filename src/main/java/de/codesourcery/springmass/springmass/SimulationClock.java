@@ -27,6 +27,7 @@ public abstract class SimulationClock extends Thread
 	private final CountDownLatch threadTermination = new CountDownLatch(1);
 
 	public SimulationClock(SimulationParameters parameters) {
+	    setName("simulation-thread");
 		setDaemon(true);
 		this.parameters = parameters;
 	}
