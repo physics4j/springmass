@@ -68,6 +68,13 @@ public abstract class Simulator {
 	public void destroy() 
 	{
 		simulationClock.destroy();
+		try {
+            system.destroy();
+        } 
+		catch (InterruptedException e) 
+        {
+            Thread.currentThread().interrupt();
+        }
 	}
 	
 	public void stop() {

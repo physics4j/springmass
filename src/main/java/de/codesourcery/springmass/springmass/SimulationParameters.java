@@ -34,6 +34,8 @@ public final class SimulationParameters
 	
 	private final boolean renderMasses;
 	
+    private final int iterationCount;	
+	
 	private final double springDampening;
 	private final double springCoefficient;
 	private final double maxSpringLength;
@@ -67,7 +69,7 @@ public final class SimulationParameters
 			double gravity, int gridColumnCount, int gridRowCount,
 			double maxParticleSpeed, int forkJoinBatchSize,
 			double springCoefficient,double springDampening,double particleMass,
-			boolean debugPerformance,double integratonTimeStep,double maxSpringLength) 
+			boolean debugPerformance,double integratonTimeStep,double maxSpringLength,int iterationCount) 
 	{
 		this.xResolution = xResolution;
 		this.yResolution = yResolution;
@@ -92,6 +94,7 @@ public final class SimulationParameters
 		this.springDampening = springDampening;
 		this.particleMass = particleMass;
 		this.integratonTimeStep = integratonTimeStep;
+		this.iterationCount = iterationCount;
 	}
 	
 	public double getIntegratonTimeStep() {
@@ -185,4 +188,9 @@ public final class SimulationParameters
 	public double getMaxSpringLength() {
 		return maxSpringLength;
 	}
+	
+	public int getIterationCount()
+    {
+        return iterationCount;
+    }
 }

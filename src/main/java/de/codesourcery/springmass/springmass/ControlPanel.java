@@ -73,7 +73,7 @@ public abstract class ControlPanel extends JPanel {
 			} 
 			else 
 			{
-				if ( isNumericParameter() ) 
+				if ( p.isNumericParameter() ) 
 				{
 					Object realValue = value;
 					if ( p.getType() == Double.class || p.getType() == Double.TYPE ) {
@@ -96,38 +96,9 @@ public abstract class ControlPanel extends JPanel {
 			}
 		}
 		
-		public boolean isNumericParameter() {
-			return isNumeric( p.getType() );
-		}
-		
-		public boolean isIntegerParameter() 
-		{
-			if ( isNumericParameter() ) 
-			{
-				Class<?> clazz = p.getType();
-				if ( clazz == Long.class || clazz == Integer.class || clazz == Short.class || clazz == Byte.class) {
-					return true;
-				}
-				if ( clazz == Long.TYPE || clazz == Integer.TYPE || clazz == Short.TYPE || clazz == Byte.TYPE ) {
-					return true;
-				}
-			}
-			return false;
-		}
-		private boolean isNumeric(Class<?> clazz) 
-		{
-			if ( Number.class.isAssignableFrom( clazz ) ) {
-				return true;
-			}
-			if ( clazz.isPrimitive() ) {
-				return clazz  == Long.TYPE || clazz == Integer.TYPE || clazz == Double.TYPE || clazz == Float.TYPE || clazz == Short.TYPE || clazz == Byte.TYPE;
-			}
-			return false;
-		}
-
 		private Object convertString(String value) 
 		{
-			if ( isNumericParameter() ) 
+			if ( p.isNumericParameter() ) 
 			{
 				double val = Double.parseDouble( value );
 				if ( p.getType() == Long.class || p.getType() == Long.TYPE ) {
@@ -296,7 +267,7 @@ public abstract class ControlPanel extends JPanel {
 		final ValueConverter converter = new ValueConverter(p);
 		
 		final JComponent result;
-		if ( converter.isNumericParameter() && ! p.getHints( SliderHint.class ).isEmpty() ) 
+		if ( p.isNumericParameter() && ! p.getHints( SliderHint.class ).isEmpty() ) 
 		{
 			result = createNumericInput( converter , p.getHints(SliderHint.class).get(0) ); 
 		} 
@@ -385,14 +356,18 @@ public abstract class ControlPanel extends JPanel {
 		
 		private final SliderHint hint;
 		private final double g;
+		private final SimulationParameter parameter;
 		
-		public SliderHelper(SliderHint hint) {
+		public SliderHelper(SimulationParameter p , SliderHint hint) {
 			this.hint = hint;
+			this.parameter = p;
 			g = hint.getMaxValue() - hint.getMinValue();
 		}
 		
-		public double fromSliderValue(int sliderValue) {
-	    	return hint.getMinValue() + (sliderValue/(double) SLIDER_MAX)*g;			
+		public double fromSliderValue(int sliderValue) 
+		{
+	    	final double result = hint.getMinValue() + (sliderValue/(double) SLIDER_MAX)*g;
+	    	return result;
 		}
 		
 		public int toSliderValue(double value) 
@@ -415,7 +390,7 @@ public abstract class ControlPanel extends JPanel {
 		
 		final JTextField textfield = new JTextField();
 		
-		final SliderHelper helper = new SliderHelper( hint );
+		final SliderHelper helper = new SliderHelper( p , hint );
 		
 		final int sliderValue = helper.toSliderValue( ((Number) p.getValue() ).doubleValue() );
 		final JSlider slider = new JSlider( JSlider.HORIZONTAL, 0 , SLIDER_MAX , sliderValue );
@@ -427,7 +402,7 @@ public abstract class ControlPanel extends JPanel {
 			public void actionPerformed(ActionEvent e) 
 			{
 				double value = Double.parseDouble( textfield.getText() );
-				if ( valueConverter.isIntegerParameter() ) {
+				if ( p.isIntegerParameter() ) {
 					value = Math.round(value);
 				}
 				valueConverter.apply( value );
@@ -448,7 +423,7 @@ public abstract class ControlPanel extends JPanel {
 			public void stateChanged(ChangeEvent e) 
 			{
 		    	double newValue = helper.fromSliderValue( slider.getValue() );
-		    	if ( valueConverter.isIntegerParameter()  ) {
+		    	if ( p.isIntegerParameter()  ) {
 		    		newValue = Math.round(newValue);
 		    		valueConverter.apply( newValue );
 		    	} else {
@@ -458,7 +433,7 @@ public abstract class ControlPanel extends JPanel {
 		    	textfield.removeActionListener( textFieldListener );
 		    	try 
 		    	{
-		    		if ( valueConverter.isIntegerParameter() ) {
+		    		if ( p.isIntegerParameter() ) {
 		    			textfield.setText( Long.toString( (long) newValue ) );
 		    		} else {
 		    			textfield.setText( Double.toString( newValue ) );

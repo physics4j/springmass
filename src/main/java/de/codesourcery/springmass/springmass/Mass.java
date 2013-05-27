@@ -17,7 +17,6 @@ package de.codesourcery.springmass.springmass;
 
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import de.codesourcery.springmass.math.Vector4;
@@ -33,58 +32,14 @@ public class Mass {
 	
 	public final List<Spring> springs = new ArrayList<>();
 	
-	public final Vector4 force = new Vector4(0,0,0,1);
-	
 	private byte flags;
 	
-	public static enum Flag 
-	{
-		FIXED(0),
-		SELECTED(1);
-		
-		private final byte mask;
-		
-		private Flag( int bit ) {
-			this.mask = (byte) ( 1 << bit );
-		}
-		
-		public boolean isSet(byte in) {
-			return ( in & mask ) != 0;
-		}
-		
-		public byte setOrClear(byte in, boolean set) {
-			if ( set ) {
-				return (byte) ( in | mask );
-			} 
-			return (byte) (in & ~mask );
-		}
-	}
+	public static final byte FLAG_FIXED = 1<<0;
+	public static final byte FLAG_SELECTED = 1<<1;
 	
 	@Override
 	public String toString() {
 		return "Mass( "+currentPosition+" )";
-	}
-	
-	public boolean hasSprings() {
-		return ! springs.isEmpty();
-	}
-	
-	public List<Spring> getLeftSprings() 
-	{
-		final List<Spring> result = new ArrayList<>();
-		for ( Spring s : springs ) {
-			final Mass candidate;
-			if ( s.m1 == this ) {
-				candidate = s.m2;
-			} else {
-				candidate = s.m1;
-			}
-			if ( candidate.currentPosition.x < this.currentPosition.x ) 
-			{
-				result.add( s );
-			}
-		}
-		return result;
 	}
 	
 	public void setPosition(Vector4 p) {
@@ -96,8 +51,13 @@ public class Mass {
 		return currentPosition.distanceTo( other.currentPosition );
 	}
 	
-	public void setFixed(boolean yesNo) {
-		flags = Flag.FIXED.setOrClear( flags  , yesNo );
+	public void setFixed(boolean yesNo) 
+	{
+	    if ( yesNo ) {
+	        this.flags |= FLAG_FIXED;
+	    } else {
+	        this.flags &= ~FLAG_FIXED;
+	    }
 	}
 	
 	public void addSpring(Spring s) 
@@ -107,16 +67,24 @@ public class Mass {
 	}
 	
 	public boolean isFixed() {
-		return Flag.FIXED.isSet( flags );
+		return (flags & FLAG_FIXED) != 0;
 	}
 	
 	public void setSelected(boolean yesNo) {
-		flags = Flag.SELECTED.setOrClear( flags  , yesNo );
+        if ( yesNo ) {
+            this.flags |= FLAG_SELECTED;
+        } else {
+            this.flags &= ~FLAG_SELECTED;
+        }	    
 	}	
 	
 	public boolean isSelected() {
-		return Flag.SELECTED.isSet( flags );
+        return (flags & FLAG_SELECTED) != 0;		
 	}	
+	
+	public boolean hasFlags(int bitMask) {
+	    return (flags & bitMask) != 0;
+	}
 	
 	public Mass(Color color,Vector4 position,double mass) {
 		if (position == null) {
@@ -129,16 +97,5 @@ public class Mass {
 
 	public double squaredDistanceTo(Vector4 other) {
 		return currentPosition.distanceTo( other );
-	}
-
-	public void removeSpring(Spring s) 
-	{
-		if ( s.m1 == this ) 
-		{
-			s.m2.springs.remove( s );
-		} else {
-			s.m1.springs.remove(s);
-		}
-		springs.remove( s );
 	}
 }

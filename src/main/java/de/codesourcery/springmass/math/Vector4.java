@@ -122,6 +122,12 @@ public final class Vector4
     	this.z = z;
     }
     
+    public void setXZYToZero() {
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+    }
+    
     public void copyInto(double[] array,int startingOffset) 
     {
         array[startingOffset] = x;

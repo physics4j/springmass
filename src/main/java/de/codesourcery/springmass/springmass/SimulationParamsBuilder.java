@@ -82,6 +82,7 @@ public class SimulationParamsBuilder {
 	private int forkJoinBatchSize;
 	
 	private double integrationTimeStep;
+	private int iterationCount;
 	
 	public static interface Hint {
 	}
@@ -142,6 +143,36 @@ public class SimulationParamsBuilder {
 		
 		public abstract void setValue(Object value);
 		
+	    public final boolean isNumericParameter() {
+	        return isNumeric( getType() );
+	    }
+	    
+	    public final boolean isIntegerParameter() 
+	    {
+	        if ( isNumericParameter() ) 
+	        {
+	            Class<?> clazz = getType();
+	            if ( clazz == Long.class || clazz == Integer.class || clazz == Short.class || clazz == Byte.class) {
+	                return true;
+	            }
+	            if ( clazz == Long.TYPE || clazz == Integer.TYPE || clazz == Short.TYPE || clazz == Byte.TYPE ) {
+	                return true;
+	            }
+	        }
+	        return false;
+	    }
+	    
+	    private final boolean isNumeric(Class<?> clazz) 
+	    {
+	        if ( Number.class.isAssignableFrom( clazz ) ) {
+	            return true;
+	        }
+	        if ( clazz.isPrimitive() ) {
+	            return clazz  == Long.TYPE || clazz == Integer.TYPE || clazz == Double.TYPE || clazz == Float.TYPE || clazz == Short.TYPE || clazz == Byte.TYPE;
+	        }
+	        return false;
+	    }   
+	    
 		@SuppressWarnings("unchecked")
 		public final <T extends Hint> List<T> getHints(Class<T> clazz) 
 		{
@@ -222,6 +253,7 @@ public class SimulationParamsBuilder {
 		forkJoinBatchSize = 1000;		
 		
 		integrationTimeStep = 50;
+		iterationCount = 1;
 		
 		maxSpringLength = -1;
 		
@@ -240,7 +272,7 @@ public class SimulationParamsBuilder {
 				verticalRestLengthFactor, horizontalRestLengthFactor, 
 				lightSurfaces, lightPosition, lightColor, gravity, 
 				gridColumnCount, gridRowCount, maxParticleSpeed, forkJoinBatchSize,springCoefficient , springDampening,particleMass,debugPerformance,
-				integrationTimeStep,maxSpringLength);
+				integrationTimeStep,maxSpringLength,getIterationCount());
 	}
 	
 	public double getMaxSpringLength() {
@@ -580,7 +612,7 @@ public class SimulationParamsBuilder {
 		return gravity;
 	}
 
-	@ValueRange(minValue=0,maxValue=70)
+	@ValueRange(minValue=0,maxValue=100)
 	public void setGravity(double gravity) {
 		this.gravity = gravity;
 	}
@@ -655,4 +687,15 @@ public class SimulationParamsBuilder {
 	public void setDebugPerformance(boolean debugPerformance) {
 		this.debugPerformance = debugPerformance;
 	}
+
+    public int getIterationCount()
+    {
+        return iterationCount;
+    }
+
+    @ValueRange(minValue=1,maxValue=30)
+    public void setIterationCount(int iterationCount)
+    {
+        this.iterationCount = iterationCount;
+    }
 }

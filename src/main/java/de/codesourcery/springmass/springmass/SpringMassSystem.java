@@ -15,273 +15,296 @@
  */
 package de.codesourcery.springmass.springmass;
 
-import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 import de.codesourcery.springmass.math.Vector4;
 
 public class SpringMassSystem {
 
-	private static final ForkJoinPool pool = new ForkJoinPool();	
-	private final ReentrantLock lock = new ReentrantLock();	
+    private final ReentrantLock lock = new ReentrantLock();	
 
-	private final Mass[][] massArray;
-	public final List<Mass> masses = new ArrayList<>();
-	public final List<Spring> springs = new ArrayList<>();
+    private final Mass[][] massArray;
+    public final List<Mass> masses = new ArrayList<>();
+    public final List<Spring> springs = new ArrayList<>();
 
-	private SimulationParameters params;
+    private final ThreadPoolExecutor threadPool;
+    
+    protected abstract class ParallelTaskCreator<T> 
+    {
+        public abstract Runnable createTask(List<T> chunk,CountDownLatch taskFinishedLatch);
+    }    
 
-	public SpringMassSystem(SimulationParameters params,Mass[][] massArray) {
-		this.params = params;
-		this.massArray = massArray;
-		for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) 
-		{
-			for ( int y = 0 ; y < params.getGridRowCount() ; y++ ) 
-			{
-				masses.add( massArray[x][y]);
-			}
-		}
-	}
+    private SimulationParameters params;
 
-	public Mass[][] getMassArray() 
-	{
-		return massArray;
-	}
+    public SpringMassSystem(SimulationParameters params,Mass[][] massArray) 
+    {
+        this.params = params;
+        this.massArray = massArray;
+        for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) 
+        {
+            for ( int y = 0 ; y < params.getGridRowCount() ; y++ ) 
+            {
+                masses.add( massArray[x][y]);
+            }
+        }
 
-	public Mass getNearestMass(Vector4 pos,double maxDistanceSquared) {
+        final int poolSize = Runtime.getRuntime().availableProcessors()+2;
+        final BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(500);
+        final ThreadFactory threadFactory = new ThreadFactory() {
 
-		Mass best = null;
-		double closestDistance = Double.MAX_VALUE; 
-		for ( Mass m : masses ) 
-		{
-			double distance = m.squaredDistanceTo( pos ); 
-			if ( best == null || distance < closestDistance ) 
-			{
-				best = m;
-				closestDistance = distance; 
-			}
-		}
-		return closestDistance > maxDistanceSquared ? null : best;
-	}
+            @Override
+            public Thread newThread(Runnable r)
+            {
+                final Thread t = new Thread(r,"calculation-thread");
+                t.setDaemon(true);
+                return t;
+            }
+        };
+        threadPool = new ThreadPoolExecutor(poolSize, poolSize, 60, TimeUnit.SECONDS, workQueue, threadFactory, new ThreadPoolExecutor.CallerRunsPolicy() );
+    }
 
-	public List<Spring> getSprings() {
-		return springs;
-	}
+    public void destroy() throws InterruptedException 
+    {
+        lock();
+        try 
+        {
+            threadPool.shutdown();
+            threadPool.awaitTermination(60,TimeUnit.SECONDS );
+        } 
+        finally 
+        {
+            unlock();
+        }
+    }
 
-	public void addSpring(Spring s) {
-		s.m1.addSpring( s );
-		springs.add( s );
-	}
-	
-	public void removeSpring(Spring s) 
-	{
-		for (Iterator<Spring> it = springs.iterator(); it.hasNext();) 
-		{
-			Spring actual = it.next();
-			if ( actual == s ) 
-			{
-				it.remove();
-				s.m1.removeSpring( s );
-				return;
-			}
-		}
-	}
+    public Mass[][] getMassArray() 
+    {
+        return massArray;
+    }
 
-	public void lock() {
-		lock.lock();
-	}
+    public Mass getNearestMass(Vector4 pos,double maxDistanceSquared) {
 
-	public void unlock() {
-		lock.unlock();
-	}
+        Mass best = null;
+        double closestDistance = Double.MAX_VALUE; 
+        for ( Mass m : masses ) 
+        {
+            double distance = m.squaredDistanceTo( pos ); 
+            if ( best == null || distance < closestDistance ) 
+            {
+                best = m;
+                closestDistance = distance; 
+            }
+        }
+        return closestDistance > maxDistanceSquared ? null : best;
+    }
 
-	public void step() 
-	{
-		lock();
-		try 
-		{
-			stepMultithreaded();
-//			stepSingleThreaded();
-		} finally {
-			unlock();
-		}
-	}
+    public List<Spring> getSprings() {
+        return springs;
+    }
 
-	private void stepSingleThreaded() 
-	{
-		for ( Spring s : getSprings() ) 
-		{
-			Vector4 force = s.calcForce();
-			s.m1.force.plusInPlace( force );
-			s.m2.force.minusInPlace( force );
-		}
-		
-		final Vector4 gravity = new Vector4(0,1,0).multiply(params.getGravity());
-		applyForces( masses , gravity );
-	}
-	
-	private void stepMultithreaded() 
-	{
-		double maxSpringLengthSquared = params.getMaxSpringLength();
-		final boolean checkLength = maxSpringLengthSquared > 0;
-		maxSpringLengthSquared *= maxSpringLengthSquared;
-		for ( Iterator<Spring> it = springs.iterator() ; it.hasNext() ; )
-		{
-			final Spring s = it.next();
-			if ( checkLength && s.lengthSquared() > maxSpringLengthSquared && !(s.m1.isSelected() || s.m2.isSelected() ) )
-			{
-				it.remove();
-				s.m1.removeSpring( s );
-				continue;
-			}
-			
-			Vector4 force = s.calcForce();
-			s.m1.force.plusInPlace( force );
-			s.m2.force.minusInPlace( force );
-		}
-		
-		final Vector4 gravity = new Vector4(0,1,0).multiply(params.getGravity());
-		MyTask task = new MyTask( masses , gravity );
-		pool.submit( task );
+    public void addSpring(Spring s) {
+        s.m1.addSpring( s );
+        springs.add( s );
+    }
 
-		task.join();
-	}	
-	
-	private void applyForces(List<Mass> masses,Vector4 gravity) 
-	{
-		final double deltaTSquared = params.getIntegratonTimeStep();
-		
-		final double maxY = params.getYResolution()*0.98;
-		for ( Mass mass : masses)
-		{
-			if ( mass.isFixed() || mass.isSelected() ) {
-				continue;
-			}
-			final Vector4 sumForces = mass.force;
-			
-			// apply gravity
-			sumForces.plusInPlace( gravity );
+    public void lock() {
+        lock.lock();
+    }
 
-			final Vector4 tmp = new Vector4(mass.currentPosition);
+    public void unlock() {
+        lock.unlock();
+    }
 
-			final Vector4 posDelta = mass.currentPosition.minus(mass.previousPosition);
+    public void step() 
+    {
+        lock();
+        try 
+        {
+            doStep();
+        } 
+        finally {
+            unlock();
+        }
+    }
 
-			Vector4 dampening = posDelta.multiply( params.getSpringDampening() );
-			sumForces.minusInPlace( dampening );
-			
-			sumForces.multiplyInPlace( 1.0 / (mass.mass*deltaTSquared) );
-			posDelta.plusInPlace( sumForces );
+    private void doStep() 
+    {
+        final Vector4 gravity = new Vector4(0,1,0).multiply(params.getGravity());
+        final Vector4 zeroGravity = new Vector4(0,0,0);
 
-			posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
-			mass.currentPosition.plusInPlace( posDelta );
-			
-			if ( mass.currentPosition.y > maxY) {
-				mass.currentPosition.y = maxY;
-			}
-			mass.previousPosition = tmp;
-			
-			mass.force.set(0, 0, 0);
-		}		
-	}
+        for ( int count = params.getIterationCount() ; count > 0 ; count--) 
+        {
+            // solve constraints
+            solveConstraints();
 
-	protected final class MyTask extends ForkJoinTask<Void> {
+            // remove springs exceeding the max. length
+            removeBrokenSprings(springs);
 
-		private final List<Mass> masses;
-		private final Vector4 gravity; 
+            // apply spring forces to particles
+            applyForces( count == 1 ? gravity : zeroGravity ); // only apply gravity once
+        }
+    }	
 
-		public MyTask(List<Mass> masses,Vector4 gravity) {
-			this.masses = masses;
-			this.gravity = gravity;
-		}
+    private void removeBrokenSprings(List<Spring> springs) 
+    {
+        double maxSpringLengthSquared = params.getMaxSpringLength();
+        if ( maxSpringLengthSquared <= 0 ) {
+            return;
+        }
 
-		@Override
-		public Void getRawResult() {
-			return null;
-		}
+        maxSpringLengthSquared *= maxSpringLengthSquared;
+        for ( Iterator<Spring> it = springs.iterator() ; it.hasNext() ; )
+        {
+            final Spring s = it.next();
+            if ( s.lengthSquared() > maxSpringLengthSquared && !(s.m1.isSelected() || s.m2.isSelected() ) )
+            {
+                it.remove();
+                s.remove();
+            }
+        }
+    }
 
-		@Override
-		protected void setRawResult(Void value) {
-		}
+    private void solveConstraints() 
+    {
+        final ParallelTaskCreator<Spring> creator = new ParallelTaskCreator<Spring>() {
 
-		protected final boolean exec() {
-			compute();
-			return true;
-		}
+            @Override
+            public Runnable createTask(final List<Spring> chunk,final CountDownLatch taskFinishedLatch)
+            {
+                return new Runnable() {
 
-		/**
-		 * The main computation performed by this task.
-		 */
-		protected void compute() 
-		{
-			final int len = masses.size();
-			if (len < params.getForkJoinBatchSize() ) 
-			{
-				applyForces( masses , gravity );
-				return;
-			}
+                    @Override
+                    public void run()
+                    {
+                        try 
+                        {
+                            for ( Spring s : chunk ) 
+                            {
+                                s.calcForce();
+                            }
+                        } 
+                        finally 
+                        {
+                            taskFinishedLatch.countDown();
+                        }
+                    }
+                    
+                };
+            }
+        };
+        
+        forEachParallel( springs,  creator ,  params.getForkJoinBatchSize() );        
+    }    
 
-			final int split = len / 2;
+    private void applyForces(final Vector4 gravity) 
+    {
+        final ParallelTaskCreator<Mass> creator = new ParallelTaskCreator<Mass>() {
 
-			MyTask task1 = new MyTask( masses.subList( 0 , split ) , gravity );
-			MyTask task2 = new MyTask( masses.subList( split , masses.size() ) , gravity ) ;
-			invokeAll( task1,task2);
-		}
-	}
+            @Override
+            public Runnable createTask(final List<Mass> chunk,final CountDownLatch taskFinishedLatch)
+            {
+                return new Runnable() {
 
-	public void removeLeftSprings(Mass nearest) 
-	{
-		lock();
-		try {
-			Point pos = findArrayPos(nearest);
-			final List<Spring> springs = new ArrayList<>(nearest.springs);
-			for ( Spring s : springs ) 
-			{
-				Mass other = s.m1 == nearest ? s.m2 : s.m1;
-				Point otherPos = findArrayPos(other);
-				if ( otherPos.x < pos.x ) {
-					nearest.removeSpring( s );
-				}
-			}
-			
-			if ( pos.x+1 < params.getGridColumnCount() ) 
-			{
-				Mass right = massArray[pos.x+1][pos.y];
-				final List<Spring> springs2 = new ArrayList<>(right.springs);
-				for ( Spring s : springs2 ) 
-				{
-					Mass o;
-					if ( s.m1 == right ) {
-						o = s.m2;
-					} else {
-						o = s.m1;
-					}
-					if ( findArrayPos( o ).x < pos.x ) {
-						o.removeSpring( s );
-					}
-				}
-			}
-		} 
-		finally {
-			unlock();
-		}
-	}
-	
-	private Point findArrayPos(Mass m) 
-	{
-		for ( int y = 0 ; y < params.getGridRowCount() ; y++) 
-		{
-			for (  int x = 0 ; x < params.getGridColumnCount() ; x++) {
-				if ( massArray[x][y] == m) {
-					return new Point(x,y);
-				}
-			}
-		}
-		throw new RuntimeException("Mass not found: "+m);
-	}
+                    @Override
+                    public void run()
+                    {
+                        try {
+                            applyForces( chunk , gravity );
+                        } finally {
+                            taskFinishedLatch.countDown();
+                        }
+                    }
+                };
+            }
+        };
+        
+        forEachParallel( masses,  creator ,  params.getForkJoinBatchSize() );
+    }
 
+    private void applyForces(List<Mass> masses,Vector4 gravity) 
+    {
+        final double deltaTSquared = params.getIntegratonTimeStep();
+
+        final double maxY = params.getYResolution()*0.98;
+        for ( Mass mass : masses)
+        {
+            if ( mass.hasFlags( Mass.FLAG_FIXED | Mass.FLAG_SELECTED ) ) {
+                continue;
+            }
+
+            Vector4 sumForces = new Vector4();
+            for ( Spring s : mass.springs ) 
+            {
+                if ( s.m1 == mass ) {
+                    sumForces.plusInPlace( s.force );
+                } else {
+                    sumForces.minusInPlace( s.force );
+                }
+            }
+
+            // apply gravity
+            sumForces.plusInPlace( gravity );
+
+            final Vector4 tmp = new Vector4(mass.currentPosition);
+
+            final Vector4 posDelta = mass.currentPosition.minus(mass.previousPosition);
+
+            Vector4 dampening = posDelta.multiply( params.getSpringDampening() );
+            sumForces.minusInPlace( dampening );
+
+            sumForces.multiplyInPlace( 1.0 / (mass.mass*deltaTSquared) );
+            posDelta.plusInPlace( sumForces );
+
+            posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
+            mass.currentPosition.plusInPlace( posDelta );
+
+            if ( mass.currentPosition.y > maxY) {
+                mass.currentPosition.y = maxY;
+            }
+            mass.previousPosition = tmp;
+        }
+    }    
+    
+    private <T> void forEachParallel(List<T> data,ParallelTaskCreator<T> taskCreator,int chunkSize) {
+        
+        final List<List<T>> chunks = splitList( data , chunkSize );
+        final CountDownLatch latch = new CountDownLatch(chunks.size());
+        for ( List<T> chunk : chunks )
+        {
+            threadPool.submit( taskCreator.createTask( chunk , latch ) );
+        }
+        
+        try 
+        {
+            latch.await();
+        } 
+        catch (InterruptedException e) 
+        {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    private <T> List<List<T>> splitList(final List<T> list,final int chunkSize) 
+    {
+        final List<List<T>> result = new ArrayList<List<T>>();
+        final int listSize = list.size();
+        
+        for ( int currentIndex = 0 ; currentIndex < listSize ; currentIndex += chunkSize ) {
+            int end=currentIndex+chunkSize;
+            if ( end > listSize ) {
+                end = listSize;
+            }
+            result.add( list.subList( currentIndex , end ) );
+        }
+        return result;
+    }    
 }

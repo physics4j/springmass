@@ -21,96 +21,107 @@ import de.codesourcery.springmass.math.Vector4;
 
 public class Spring {
 
-	private final double dampening;
+    public final Mass m1;
+    public final Mass m2;
 
-	public final Mass m1;
-	public final Mass m2;
+    private final double coefficient;
 
-	private final double coefficient;
+    private final double restLen;
 
-	private final double restLen;
+    public final boolean doRender;
 
-	public final boolean doRender;
+    public final Color color;
 
-	public final Color color;
+    /*  double im1 = 1/m1.mass; 
+     *  double im2 = 1/m2.mass; 
+     *  double ratio = im1 / (im1 + im2);
+     */
+    private final double m1m2Ratio; // 
+    
+    public Vector4 force = new Vector4();
 
-	public Spring(Mass m1, Mass m2,double restLength) {
-		this(m1,m2,restLength,false);
-	}
+    public Spring(Mass m1, Mass m2,double restLength) {
+        this(m1,m2,restLength,false);
+    }
 
-	public Spring(Mass m1, Mass m2,double restLength,boolean doRender) 
-	{ 
-		this(m1,m2,restLength,doRender,Color.GREEN);
-	}
+    public Spring(Mass m1, Mass m2,double restLength,boolean doRender) 
+    { 
+        this(m1,m2,restLength,doRender,Color.GREEN);
+    }
 
-	public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color) 
-	{
-		this(m1, m2, restLength, doRender, color, 0.1, 0.1 );
-	}
+    public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color) 
+    {
+        this(m1, m2, restLength, doRender, color, 0.1, 0.1 );
+    }
 
-	public double lengthSquared() {
-		return m1.currentPosition.minus(m2.currentPosition).lengthSquared();
-	}
-	
-	public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color,double coefficient,double dampening) 
-	{
-		if ( m1 == null ) {
-			throw new IllegalArgumentException("m1 must not be null");
-		}
-		if ( m2 == null ) {
-			throw new IllegalArgumentException("m2 must not be null");
-		}
-		this.restLen = restLength;
-		this.m1 = m1;
-		this.m2 = m2;
-		this.doRender = doRender;
-		this.color = color;
-		this.coefficient = coefficient;
-		this.dampening = dampening;
-	}
+    public double lengthSquared() {
+        return m1.currentPosition.minus(m2.currentPosition).lengthSquared();
+    }
 
-	public double distanceTo(Vector4 c) 
-	{
-		/*
+    public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color,double coefficient,double dampening) 
+    {
+        if ( m1 == null ) {
+            throw new IllegalArgumentException("m1 must not be null");
+        }
+        if ( m2 == null ) {
+            throw new IllegalArgumentException("m2 must not be null");
+        }
+        this.restLen = restLength;
+        this.m1 = m1;
+        this.m2 = m2;
+        this.doRender = doRender;
+        this.color = color;
+        this.coefficient = coefficient;
+
+        final double im1 = 1/m1.mass; 
+        final double im2 = 1/m2.mass; 
+        this.m1m2Ratio = im1 / (im1 + im2);
+    }
+
+    public double distanceTo(Vector4 c) 
+    {
+        /*
 So it can be written as simple as:
 distance = |AB X AC| / sqrt(AB * AB)
 Here X mean cross product of vectors, and * mean dot product of vectors. This applied in both 2 dimentional and three dimentioanl space.		 
-		 */
-		Vector4 ab = m2.currentPosition.minus( m1.currentPosition );
-		Vector4 ac = c.minus( m1.currentPosition );
-		return ab.crossProduct( ac ).length() / ab.length();
-	}
+         */
+        Vector4 ab = m2.currentPosition.minus( m1.currentPosition );
+        Vector4 ac = c.minus( m1.currentPosition );
+        return ab.crossProduct( ac ).length() / ab.length();
+    }
 
-	@Override
-	public String toString() {
-		return "Spring ( "+m1+" <-> "+m2+")";
-	}
+    @Override
+    public String toString() {
+        return "Spring ( "+m1+" <-> "+m2+")";
+    }
 
-	@Override
-	public int hashCode() 
-	{
-		return m1.hashCode() | m2.hashCode();
-	}
+    public void remove() {
+        m2.springs.remove( this );
+        m1.springs.remove( this );
+    }
 
-	@Override
-	public boolean equals(Object obj) 
-	{
-		if ( obj instanceof Spring ) {
-			Spring that = (Spring) obj;
-			return (this.m1 == that.m1 && this.m2 == that.m2) ||
-					(this.m1 == that.m2 && this.m2 == that.m1 );
-		} 
-		return false;
-	}
-	
-	public Vector4 calcForce() 
-	{
-		Vector4 lengthDelta = m1.currentPosition.minus( m2.currentPosition ); 
-		double d = lengthDelta.length();
-		double difference = (restLen - d); 
-		double im1 = 1 / m1.mass; // inverse mass quantities 
-		double im2 = 1 / m2.mass; 
-		lengthDelta.multiplyInPlace( (im1 / (im1 + im2)) * coefficient * difference );
-		return lengthDelta;
-	}	
+    @Override
+    public int hashCode() 
+    {
+        return m1.hashCode() | m2.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) 
+    {
+        if ( obj instanceof Spring ) {
+            Spring that = (Spring) obj;
+            return (this.m1 == that.m1 && this.m2 == that.m2) ||
+                    (this.m1 == that.m2 && this.m2 == that.m1 );
+        } 
+        return false;
+    }
+
+    public void calcForce() 
+    {
+        final Vector4 lengthDelta = m1.currentPosition.minus( m2.currentPosition ); 
+        final double difference = (restLen - lengthDelta.length()); 
+        lengthDelta.multiplyInPlace( m1m2Ratio * coefficient * difference );
+        force = lengthDelta;
+    }	
 }

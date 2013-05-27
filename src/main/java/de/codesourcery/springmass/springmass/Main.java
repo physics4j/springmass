@@ -178,16 +178,6 @@ public class Main extends Frame {
 						}
 					}
 				} 
-				else if ( button == MouseEvent.BUTTON2 ) 
-				{
-					final Mass nearest = getNearestMass( e.getX() , e.getY() );
-
-					if ( nearest != null ) 
-					{
-						system.removeLeftSprings( nearest );
-						renderPanel.doRender();
-					}
-				}
 			}
 		}
 
