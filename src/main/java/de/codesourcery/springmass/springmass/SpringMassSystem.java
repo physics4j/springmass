@@ -16,11 +16,9 @@
 package de.codesourcery.springmass.springmass;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -41,9 +39,13 @@ public class SpringMassSystem
     public final List<Mass> masses = new ArrayList<>();
     public final List<Spring> springs = new ArrayList<>();
 
+    private final List<Spring> removedSprings = new ArrayList<>();
+    
     private SimulationParameters params;
 
     private SpringMassSystem copiedFrom;
+    
+    // mapping ORIGINAL mass -> copied mass
     private IdentityHashMap<Mass,Mass> massMappings;
 
     protected abstract class ParallelTaskCreator<T> 
@@ -51,7 +53,7 @@ public class SpringMassSystem
         public abstract Runnable createTask(List<T> chunk,CountDownLatch taskFinishedLatch);
     }    
 
-    public SpringMassSystem createCopy(SpringMassSystem original) 
+    public SpringMassSystem createCopy() 
     {
         lock();
         try 
@@ -63,20 +65,21 @@ public class SpringMassSystem
             }
 
             // clone particles
-            massMappings = new IdentityHashMap<>();
+            final IdentityHashMap<Mass,Mass> massMappings = new IdentityHashMap<>();
             for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) 
             {
                 for ( int y = 0 ; y < params.getGridRowCount() ; y++ ) 
                 {        
                     final Mass mOrig = massArray[x][y];
-                    final Mass mCopy = mOrig.createCopyWithoutSprings( mOrig.id*2);
+                    final Mass mCopy = mOrig.createCopyWithoutSprings();
                     arrayCopy[x][y]=mCopy;
                     massMappings.put( mOrig , mCopy );
                 }
             }
 
             final SpringMassSystem copy = new SpringMassSystem( this.params , arrayCopy );
-            copy.copiedFrom = original;
+            copy.massMappings = massMappings;
+            copy.copiedFrom = this;
 
             // add springs
             for ( Spring spring : springs ) 
@@ -85,8 +88,10 @@ public class SpringMassSystem
                 Mass copy2 = massMappings.get( spring.m2 );
                 copy.addSpring( spring.createCopy( copy1 , copy2 ) );
             }
+            
             return copy;
-        } finally {
+        } 
+        finally {
             unlock();
         }
     }
@@ -96,12 +101,10 @@ public class SpringMassSystem
         lock();
         try 
         {
+            final List<Spring> removed;            
             copiedFrom.lock();
             try 
             {
-                // remove all springs
-                springs.clear();
-
                 // copy positions and flags
                 for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) 
                 {
@@ -110,18 +113,27 @@ public class SpringMassSystem
                         final Mass original = copiedFrom.massArray[x][y];                
                         final Mass clone = this.massArray[x][y];
                         clone.copyPositionAndFlagsFrom( original );
-
-                        // add new springs
-                        for ( Spring spring : original.springs ) 
-                        {
-                            Mass copy1 = massMappings.get( spring.m1 );
-                            Mass copy2 = massMappings.get( spring.m2 );                    
-                            addSpring( spring.createCopy( copy1,copy2 ) ); 
-                        }
                     }
                 }  
-            } finally {
+                
+                // get all springs that were removed since the last call
+                // to updateFromOriginal() and immediately clear the list
+                // so we don't process them again
+                removed = new ArrayList<>( copiedFrom.removedSprings );
+                copiedFrom.removedSprings.clear();                
+            } 
+            finally {
                 copiedFrom.unlock();
+            }
+            
+            // remove all springs that were removed from the original            
+            for ( Spring removedSpring : removed ) 
+            {
+                Mass m1 = massMappings.get( removedSpring.m1 );
+                Mass m2 = massMappings.get( removedSpring.m2 );
+                final Spring copy = removedSpring.createCopy( m1 ,m2 );
+                copy.remove();
+                springs.remove( copy );
             }
         } finally {
             unlock();
@@ -140,7 +152,10 @@ public class SpringMassSystem
             }
         }
 
-        final int poolSize = Runtime.getRuntime().availableProcessors()+2;
+        int poolSize = Runtime.getRuntime().availableProcessors()-2;
+        if ( poolSize <= 0 ) {
+            poolSize+=2;
+        }
         final BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(500);
         final ThreadFactory threadFactory = new ThreadFactory() {
 
@@ -199,8 +214,17 @@ public class SpringMassSystem
         springs.add( s );
     }
 
-    public void lock() {
-        lock.lock();
+    public void lock() 
+    {
+        try 
+        {
+            if ( ! lock.tryLock( 5 , TimeUnit.SECONDS ) ) 
+            {
+                throw new RuntimeException("Thread "+Thread.currentThread().getName()+" failed to aquire lock after waiting 5 seconds");
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public void unlock() {
@@ -252,10 +276,11 @@ public class SpringMassSystem
             {
                 it.remove();
                 s.remove();
+                removedSprings.add( s );
             }
         }
     }
-
+    
     private void solveConstraints() 
     {
         final ParallelTaskCreator<Spring> creator = new ParallelTaskCreator<Spring>() {

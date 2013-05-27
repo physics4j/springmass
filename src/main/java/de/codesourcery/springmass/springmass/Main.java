@@ -115,7 +115,14 @@ public class Main extends Frame {
 			}
 
 			this.parameters = parameters;
-			this.simulator = new Simulator(parameters);
+			this.simulator = new Simulator(parameters) {
+
+                @Override
+                protected void afterTick()
+                {
+                    renderPanel.modelChanged();
+                }
+            };
 			
 			if ( renderPanel != null ) {
 				renderPanel.setSimulator( simulator );
@@ -166,6 +173,7 @@ public class Main extends Frame {
 						if ( nearest != null ) 
 						{
 							nearest.setFixed( ! nearest.isFixed() );
+		                    renderPanel.modelChanged();							
 						}
 					}
 				} 
@@ -182,6 +190,7 @@ public class Main extends Frame {
 			if ( selected != null ) {
 				selected.setSelected( true );
 			}
+			renderPanel.modelChanged();			
 		}
 
 		public void mouseReleased(MouseEvent e) 
@@ -201,6 +210,7 @@ public class Main extends Frame {
 					final Vector4 newPos = renderPanel.viewToModel( e.getX() , e.getY() );
 					newPos.z=parameters.getMouseDragZDepth();
 					selected.setPosition( newPos );
+					renderPanel.modelChanged();					
 				}
 			}
 		}

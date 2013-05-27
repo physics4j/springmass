@@ -98,27 +98,27 @@ Here X mean cross product of vectors, and * mean dot product of vectors. This ap
     public String toString() {
         return "Spring ( "+m1+" <-> "+m2+")";
     }
+    
+    @Override
+    public boolean equals(Object obj)
+    {
+        if ( obj instanceof Spring) 
+        {
+            final Spring that = (Spring) obj;
+            return this.m1 == that.m1 && this.m2 == that.m2;
+        }
+        return false;
+    }
+    
+    @Override
+    public int hashCode()
+    {
+        return this.m1.hashCode() | this.m2.hashCode();
+    }
 
     public void remove() {
         m2.springs.remove( this );
         m1.springs.remove( this );
-    }
-
-    @Override
-    public int hashCode() 
-    {
-        return m1.hashCode() | m2.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) 
-    {
-        if ( obj instanceof Spring ) {
-            Spring that = (Spring) obj;
-            return (this.m1 == that.m1 && this.m2 == that.m2) ||
-                    (this.m1 == that.m2 && this.m2 == that.m1 );
-        } 
-        return false;
     }
 
     public void calcForce() 

@@ -23,8 +23,6 @@ import de.codesourcery.springmass.math.Vector4;
 
 public class Mass {
 	
-    public final int id;
-    
 	public final Vector4 currentPosition=new Vector4();
 	public Vector4 previousPosition=new Vector4();
 	
@@ -52,9 +50,9 @@ public class Mass {
 		return currentPosition.distanceTo( other.currentPosition );
 	}
 	
-	public Mass createCopyWithoutSprings(int newId) 
+	public Mass createCopyWithoutSprings() 
 	{
-	    Mass result = new Mass(newId,color,currentPosition,mass);
+	    Mass result = new Mass(color,currentPosition,mass);
 	    result.flags = flags;
 	    result.previousPosition = new Vector4(previousPosition);
 	    return result;
@@ -95,11 +93,10 @@ public class Mass {
 	    return (flags & bitMask) != 0;
 	}
 	
-	public Mass(int id,Color color,Vector4 position,double mass) {
+	public Mass(Color color,Vector4 position,double mass) {
 		if (position == null) {
 			throw new IllegalArgumentException("position must not be null");
 		}
-		this.id = id;
 		this.color = color;
 		this.mass = mass;
 		setPosition(position);

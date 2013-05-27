@@ -16,14 +16,11 @@
 package de.codesourcery.springmass.springmass;
 
 import java.awt.Color;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import de.codesourcery.springmass.math.Vector4;
 
 public class SpringMassSystemFactory {
 
-    private static final AtomicInteger MASS_ID = new AtomicInteger(0);
-    
 	private Spring createSpring(Mass m1,Mass m2,double restLength , boolean doRender,Color color,SimulationParameters parameters) 
 	{
 		return new Spring(m1, m2, restLength, doRender, color, parameters.getSpringCoefficient() );
@@ -58,7 +55,7 @@ public class SpringMassSystemFactory {
 			for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
 			{
 				final Vector4 pos = new Vector4( xOffset + scaleX*x , yOffset + scaleY*factor*y,-10);
-				final Mass m = new Mass( MASS_ID.incrementAndGet() , Color.red  , pos , parameters.getParticleMass() );
+				final Mass m = new Mass( Color.red  , pos , parameters.getParticleMass() );
 				if ( y == 0 ) {
 					m.setFixed( true );
 				}

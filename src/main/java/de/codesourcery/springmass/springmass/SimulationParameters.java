@@ -24,7 +24,8 @@ public final class SimulationParameters
 	private final int xResolution;
 	private final int yResolution;
 
-	private final int frameSleepTime;
+	private final float desiredFPS;
+	private final boolean waitForVSync;
 
 	private final boolean renderAllSprings;
 
@@ -62,19 +63,19 @@ public final class SimulationParameters
 	private final double integratonTimeStep;
 
 	public SimulationParameters(int xResolution, int yResolution,
-			int frameSleepTime, boolean renderAllLines, boolean renderSprings,
+			float desiredFPS, boolean renderAllLines, boolean renderSprings,
 			boolean renderMasses, double mouseDragZDepth,
 			double verticalRestLengthFactor, double horizontalRestLengthFactor,
 			boolean lightSurfaces, Vector4 lightPosition, Color lightColor,
 			double gravity, int gridColumnCount, int gridRowCount,
 			double maxParticleSpeed, int forkJoinBatchSize,
 			double springCoefficient,double springDampening,double particleMass,
-			boolean debugPerformance,double integratonTimeStep,double maxSpringLength,int iterationCount) 
+			boolean debugPerformance,double integratonTimeStep,double maxSpringLength,int iterationCount,boolean waitForVSync) 
 	{
 		this.xResolution = xResolution;
 		this.yResolution = yResolution;
 		this.debugPerformance = debugPerformance;
-		this.frameSleepTime = frameSleepTime;
+		this.desiredFPS = desiredFPS;
 		this.renderAllSprings = renderAllLines;
 		this.renderSprings = renderSprings;
 		this.renderMasses = renderMasses;
@@ -95,7 +96,13 @@ public final class SimulationParameters
 		this.particleMass = particleMass;
 		this.integratonTimeStep = integratonTimeStep;
 		this.iterationCount = iterationCount;
+		this.waitForVSync = waitForVSync;
 	}
+	
+	public boolean isWaitForVSync()
+    {
+        return waitForVSync;
+    }
 	
 	public double getIntegratonTimeStep() {
 		return integratonTimeStep;
@@ -117,8 +124,8 @@ public final class SimulationParameters
 		return yResolution;
 	}
 
-	public int getFrameSleepTime() {
-		return frameSleepTime;
+	public float getDesiredFPS() {
+		return desiredFPS;
 	}
 
 	public boolean isRenderAllSprings() {

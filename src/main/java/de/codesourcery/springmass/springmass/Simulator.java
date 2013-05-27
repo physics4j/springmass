@@ -16,7 +16,7 @@
 package de.codesourcery.springmass.springmass;
 
 
-public class Simulator {
+public abstract class Simulator {
 
 	private final SpringMassSystem system;
 	private final SimulationClock simulationClock;
@@ -39,25 +39,38 @@ public class Simulator {
 			{
 				long stepTime = -System.currentTimeMillis();
 				
-				system.step();
-				
-				stepTime += System.currentTimeMillis();
-				
-				minTime = Math.min(minTime, stepTime);
-				maxTime = Math.max(maxTime, stepTime);
-				sumTime += stepTime;
-				
-				tickCounter++;
+				try {
+				    system.step();
+				} 
+				catch(Exception e) 
+				{
+				    e.printStackTrace();
+				} 
+				finally 
+				{
+				    stepTime += System.currentTimeMillis();
+				    
+	                minTime = Math.min(minTime, stepTime);
+	                maxTime = Math.max(maxTime, stepTime);
+	                sumTime += stepTime;
+	                
+	                tickCounter++;				    
+				}
+
 				if ( parameters.isDebugPerformance() && (tickCounter%30) == 0 ) 
 				{
 				    final int avgTime = Math.round( sumTime / (float) tickCounter ); 
 					System.out.println("Simulation time: current: "+stepTime+" ms / min: "+minTime+" ms / avg: "+avgTime+" ms / max: "+maxTime+" ms");
 				}
+				
+				afterTick();
 			}
 			
 		};
 		simulationClock.start();		
 	}
+	
+	protected abstract void afterTick();
 	
 	public void start() 
 	{

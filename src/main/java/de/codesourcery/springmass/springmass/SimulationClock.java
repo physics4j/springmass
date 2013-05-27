@@ -101,16 +101,11 @@ public abstract class SimulationClock extends Thread
 				if ( terminate ) {
 					break;
 				}
-
 				tick();
-
-				try {
-					Thread.sleep(parameters.getFrameSleepTime());
-				} 
-				catch (InterruptedException e) {
-				}
 			}
-		} finally {
+		} 
+		finally 
+		{
 			threadTermination.countDown();
 		}
 	}

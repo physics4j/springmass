@@ -46,7 +46,9 @@ public class SimulationParamsBuilder {
 	private int xResolution;
 	private int yResolution;
 
-	private int frameSleepTime;
+	private float desiredFPS;
+	
+	private boolean waitForVSync;
 	
 	private boolean debugPerformance;
 	
@@ -220,7 +222,8 @@ public class SimulationParamsBuilder {
 		xResolution = 1000;
 		yResolution = 1000;
 
-		frameSleepTime = 20;
+		desiredFPS = 60;
+		waitForVSync = true;
 		
 		debugPerformance=false;
 		
@@ -268,11 +271,11 @@ public class SimulationParamsBuilder {
 	public SimulationParameters build() 
 	{
 		return new SimulationParameters(xResolution, yResolution, 
-				frameSleepTime, renderAllSprings, renderSprings, renderMasses, mouseDragZDepth, 
+				desiredFPS, renderAllSprings, renderSprings, renderMasses, mouseDragZDepth, 
 				verticalRestLengthFactor, horizontalRestLengthFactor, 
 				lightSurfaces, lightPosition, lightColor, gravity, 
 				gridColumnCount, gridRowCount, maxParticleSpeed, forkJoinBatchSize,springCoefficient , springDampening,particleMass,debugPerformance,
-				integrationTimeStep,maxSpringLength,getIterationCount());
+				integrationTimeStep,maxSpringLength,getIterationCount(),waitForVSync);
 	}
 	
 	public double getMaxSpringLength() {
@@ -524,13 +527,13 @@ public class SimulationParamsBuilder {
 		return yResolution;
 	}
 
-	public int getFrameSleepTime() {
-		return frameSleepTime;
+	public float getDesiredFrameRate() {
+		return desiredFPS;
 	}
 
-    @ValueRange(minValue=0,maxValue=500)
-	public void setFrameSleepTime(int frameSleepTime) {
-		this.frameSleepTime = frameSleepTime;
+    @ValueRange(minValue=0.0,maxValue=300.0)
+	public void setDesiredFrameRate(float desiredFPS) {
+		this.desiredFPS = desiredFPS;
 	}
 
 	public boolean isRenderAllSpring() {
@@ -697,5 +700,15 @@ public class SimulationParamsBuilder {
     public void setIterationCount(int iterationCount)
     {
         this.iterationCount = iterationCount;
+    }
+    
+    public boolean isWaitForVSync()
+    {
+        return waitForVSync;
+    }
+    
+    public void setWaitForVSync(boolean waitForVSync)
+    {
+        this.waitForVSync = waitForVSync;
     }
 }

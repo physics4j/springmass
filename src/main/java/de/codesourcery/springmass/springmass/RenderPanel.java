@@ -24,6 +24,7 @@ import java.awt.Toolkit;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.image.BufferStrategy;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,61 +42,64 @@ public final class RenderPanel extends Canvas {
     // @GuardedBy( SIMULATION_LOCK )
     private SimulationParameters parameters;
 
-    // @GuardedBy( SIMULATION_LOCK )
-    private Mass[][] masses;
-
-    // @GuardedBy( SIMULATION_LOCK )
-    private int rows;
-
-    // @GuardedBy( SIMULATION_LOCK )
-    private int columns;
-
     private final Object BUFFER_LOCK = new Object();
+
     private volatile boolean bufferCreated = false;
-    
+
     private final RenderThread renderThread = new RenderThread();
 
     protected final class RenderThread extends Thread 
     {
+        private volatile float desiredFps;
         private volatile int delay=20;
         private volatile boolean debugPerformance=false;        
-        
+
         private final CountDownLatch latch=new CountDownLatch(1);
         private volatile boolean terminate;
-        
+
         private final Object COUNTER_LOCK = new Object();
-        
+
         // @GuardedBy( COUNTER_LOCK )
         private long frameCounter=0;
-        
+
         // @GuardedBy( COUNTER_LOCK )        
         private long minTime=Long.MAX_VALUE;
-        
+
         // @GuardedBy( COUNTER_LOCK )        
         private long sumTime;        
-        
-        // @GuardedBy( COUNTER_LOCK )        
-        private long maxTime=Long.MIN_VALUE;        
 
+        // @GuardedBy( COUNTER_LOCK )        
+        private long maxTime=Long.MIN_VALUE;  
+        
+        // @GuardedBy( COUNTER_LOCK ) 
+        private long statResetTime=System.currentTimeMillis();
+
+        // @GuardedBy( COUNTER_LOCK ) 
+        private float currentAvgFPS=0;
+        
         public RenderThread() 
         {
+            setName("rendering-thread");
             setDaemon(true);
         }
-        
+
         public void parametersChanged() 
         {
-            this.delay = parameters.getFrameSleepTime();
-            this.debugPerformance = parameters.isDebugPerformance();
-            
             synchronized (COUNTER_LOCK) 
             {
+                this.desiredFps = parameters.getDesiredFPS();
+                this.delay = Math.round( 1000.0f / this.desiredFps );
+                this.debugPerformance = parameters.isDebugPerformance();
+                
                 minTime=Long.MAX_VALUE;
                 maxTime=Long.MIN_VALUE;                   
                 frameCounter=0;
+                currentAvgFPS = 0;
                 sumTime=0;
+                statResetTime=System.currentTimeMillis();                
             }
         }
-        
+
         public void shutdown() throws InterruptedException 
         {
             terminate = true;
@@ -113,45 +117,64 @@ public final class RenderPanel extends Canvas {
                     boolean rendered = false;
                     try 
                     {
-                        rendered = doRender();
+                        rendered = renderFrame(currentAvgFPS);
                     } 
                     catch(Exception e) 
                     {
                         e.printStackTrace();
                     }
                     time += System.currentTimeMillis();
-                    
+
                     if ( rendered ) 
                     {
                         synchronized (COUNTER_LOCK) 
                         {
                             frameCounter++;
-                            
+
                             minTime = Math.min(time,minTime);
                             maxTime = Math.max(time,maxTime);
                             sumTime += time;
-    
+                            
+                            // adjust delay based on avg FPS
+                            final float timeDelta = (System.currentTimeMillis() - statResetTime)/1000.0f; 
+                            currentAvgFPS = frameCounter / timeDelta;
+                            final float delta = desiredFps-currentAvgFPS;
+                            if ( Math.abs( delta ) > 2 ) 
+                            {
+                                if ( delta > 0 ) 
+                                {
+                                    if ( delay > 0 ) {
+                                        delay--;
+//                                        System.out.println("*** New delay: "+delay+" , desired FPS:  "+desiredFps+" , current FPS: "+currentAvgFPS);                                        
+                                    }
+                                } else {
+                                    delay++;
+//                                    System.out.println("*** New delay: "+delay+" , desired FPS:  "+desiredFps+" , current FPS: "+currentAvgFPS);
+                                }
+                            }
+
                             if ( debugPerformance && (frameCounter%30) == 0 ) 
                             {
                                 final float avgTime = sumTime / (float) frameCounter;
-                                
+                                final float avgFps = 1000.0f / avgTime;
                                 final float maxFps = 1000.0f / minTime;
                                 final float minFps = 1000.0f / maxTime;
-                                final float avgFps = 1000.0f / avgTime;
                                 
                                 System.out.println("frames "+frameCounter+" , current "+time+" ms / "+
-                                		" min: "+minTime+" ms / avg: "+avgTime+" ms / max: "+maxTime+" ms (FPS: "+minFps+" / "+avgFps+" / "+maxFps+" )");
+                                        " min: "+minTime+" ms / avg: "+avgTime+" ms / max: "+maxTime+" ms (FPS: "+minFps+" / "+avgFps+" / "+maxFps+" )");
                             }
                         }
                     }
 
                     // sleep some time
-                    try { Thread.sleep(delay); } 
-                    catch(Exception e) 
+                    if ( delay > 0 ) 
                     {
-                        e.printStackTrace();
-                    }    
-                    
+                        try { Thread.sleep(delay); } 
+                        catch(Exception e) 
+                        {
+                            e.printStackTrace();
+                        }
+                    }
                 }
             } 
             finally {
@@ -160,12 +183,11 @@ public final class RenderPanel extends Canvas {
         }    
     };
 
-
-    
     public RenderPanel() 
     {
         setFocusable(true);
-        addComponentListener( new ComponentAdapter() {
+        addComponentListener( new ComponentAdapter() 
+        {
 
             @Override
             public void componentShown(ComponentEvent e) 
@@ -176,7 +198,7 @@ public final class RenderPanel extends Canvas {
                     bufferCreated = true;
                 }
             }
-            
+
             @Override
             public void componentResized(ComponentEvent e) 
             {
@@ -193,19 +215,16 @@ public final class RenderPanel extends Canvas {
     {
         synchronized (SIMULATION_LOCK) 
         {
-            this.system = simulator.getSpringMassSystem();
+            this.system = simulator.getSpringMassSystem().createCopy();
             this.parameters = simulator.getSimulationParameters();
-            this.masses = this.system.getMassArray();
-            this.columns = simulator.getSimulationParameters().getGridColumnCount();
-            this.rows = simulator.getSimulationParameters().getGridRowCount();
             this.renderThread.parametersChanged();
         }
     }
-    
+
     public void addTo(Container container) 
     {
         container.add( this );
-        
+
         if ( ! this.renderThread.isAlive() ) 
         {
             this.renderThread.start();
@@ -296,9 +315,26 @@ public final class RenderPanel extends Canvas {
             final double angle = Math.abs( normal.dotProduct( lightVector ) );
             return lightColor.multiply( angle ).toColor();
         }
-    }		
+    }	
+    
+    public void modelChanged() 
+    {
+        synchronized (SIMULATION_LOCK) 
+        {                
+            this.system.updateFromOriginal();
+            if ( this.parameters.isWaitForVSync() ) 
+            {
+                try {
+                    SIMULATION_LOCK.wait();
+                } 
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }        
+    }
 
-    private boolean doRender() 
+    private boolean renderFrame(float currentFPS) 
     {
         synchronized( BUFFER_LOCK ) 
         {
@@ -306,11 +342,23 @@ public final class RenderPanel extends Canvas {
             {
                 return false;
             }
-            BufferStrategy strategy = getBufferStrategy();
-            Graphics graphics = strategy.getDrawGraphics();
-            try {
-                render( graphics );
-            } finally {
+
+            final BufferStrategy strategy = getBufferStrategy();
+            final Graphics graphics = strategy.getDrawGraphics();
+            try 
+            {
+                final SimulationParameters params;
+                final SpringMassSystem sys;
+                synchronized (SIMULATION_LOCK) 
+                {                
+                    params = this.parameters;
+                    sys = this.system;
+                    render( graphics , sys , params  , currentFPS );
+                    SIMULATION_LOCK.notifyAll();
+                }
+            } 
+            finally 
+            {
                 graphics.dispose();
             }
             strategy.show();
@@ -318,138 +366,121 @@ public final class RenderPanel extends Canvas {
         Toolkit.getDefaultToolkit().sync();
         return true;
     }
+    
+    private final DecimalFormat FPS_FORMAT = new DecimalFormat("###0.00");
 
-    private void render(Graphics g) 
+    private void render(Graphics g,SpringMassSystem system,SimulationParameters parameters,float currentAvgFPS) 
     {
-        long setupTime = 0;
-        long renderingTime = 0;
-
         // clear image
         g.setColor( getBackground() );
         g.fillRect( 0 , 0 , getWidth() , getHeight() );
+        
+        g.setColor( Color.WHITE );
+        
+        g.drawString( "Avg. FPS: "+FPS_FORMAT.format( currentAvgFPS ) , 5, 15 );
+        
+        final double scaleX = getWidth() / (double) parameters.getXResolution();
+        final double scaleY = getHeight() / (double) parameters.getYResolution();
 
-        synchronized( SIMULATION_LOCK ) 
+        final int boxWidthUnits = 5;
+
+        final int boxWidthPixels = (int) Math.round( boxWidthUnits * scaleX );
+        final int boxHeightPixels = (int) Math.round( boxWidthUnits * scaleY );
+
+        final int halfBoxWidthPixels = (int) Math.round( boxWidthPixels / 2.0 );
+        final int halfBoxHeightPixels = (int) Math.round( boxHeightPixels / 2.0 );
+
+        if ( parameters.isLightSurfaces() ) 
         {
-            system.lock();
-            try 
+            final int rows = parameters.getGridRowCount();
+            final int columns = parameters.getGridColumnCount();
+
+            final List<Triangle> triangles = new ArrayList<>( rows*columns*2 );
+            final boolean checkArea = parameters.getMaxSpringLength() > 0;
+            final double maxLenSquared = parameters.getMaxSpringLength()*parameters.getMaxSpringLength();
+
+            final Mass[][] masses = system.getMassArray();
+            for ( int y = 0 ; y < rows-1 ; y++) 
             {
-                final double scaleX = getWidth() / (double) parameters.getXResolution();
-                final double scaleY = getHeight() / (double) parameters.getYResolution();
-
-                final int boxWidthUnits = 5;
-
-                final int boxWidthPixels = (int) Math.round( boxWidthUnits * scaleX );
-                final int boxHeightPixels = (int) Math.round( boxWidthUnits * scaleY );
-
-                final int halfBoxWidthPixels = (int) Math.round( boxWidthPixels / 2.0 );
-                final int halfBoxHeightPixels = (int) Math.round( boxHeightPixels / 2.0 );
-
-                if ( parameters.isLightSurfaces() ) 
+                for ( int x = 0 ; x < columns-1 ; x++) 
                 {
-                    long time = -System.currentTimeMillis();
-                    final List<Triangle> triangles = new ArrayList<>( rows*columns*2 );
-                    final boolean checkArea = parameters.getMaxSpringLength() > 0;
-                    final double maxLenSquared = parameters.getMaxSpringLength()*parameters.getMaxSpringLength();
+                    Mass m0 = masses[x][y];
+                    Mass m1 = masses[x+1][y];
+                    Mass m2 = masses[x][y+1];
+                    Mass m3 = masses[x+1][y+1];
 
-                    for ( int y = 0 ; y < rows-1 ; y++) 
-                    {
-                        for ( int x = 0 ; x < columns-1 ; x++) 
-                        {
-                            Mass m0 = masses[x][y];
-                            Mass m1 = masses[x+1][y];
-                            Mass m2 = masses[x][y+1];
-                            Mass m3 = masses[x+1][y+1];
+                    Vector4 p0 = m0.currentPosition;
+                    Vector4 p1 = m1.currentPosition;
+                    Vector4 p2 = m2.currentPosition;
+                    Vector4 p3 = m3.currentPosition;
 
-                            Vector4 p0 = m0.currentPosition;
-                            Vector4 p1 = m1.currentPosition;
-                            Vector4 p2 = m2.currentPosition;
-                            Vector4 p3 = m3.currentPosition;
-
-                            Triangle t1 = new Triangle(p0,p1,p2);
-                            Triangle t2 = new Triangle(p1,p3,p2);							
-                            if ( checkArea ) {
-                                if ( t1.noSideExceedsLengthSquared( maxLenSquared ) ) {
-                                    triangles.add( t1 );
-                                }
-                                if ( t2.noSideExceedsLengthSquared( maxLenSquared ) ) {
-                                    triangles.add( t2 );
-                                }
-                            } else {
-                                triangles.add( t1 );
-                                triangles.add( t2 );
-                            }
+                    Triangle t1 = new Triangle(p0,p1,p2);
+                    Triangle t2 = new Triangle(p1,p3,p2);							
+                    if ( checkArea ) {
+                        if ( t1.noSideExceedsLengthSquared( maxLenSquared ) ) {
+                            triangles.add( t1 );
                         }
-                    }
-
-                    // sort by Z-coordinate and draw from back to front
-                    Collections.sort( triangles );
-
-                    time += System.currentTimeMillis();
-                    setupTime += time;
-
-                    time = -System.currentTimeMillis();
-
-                    final int[] pointX = new int[3];
-                    final int[] pointY = new int[3];					
-                    for ( Triangle t : triangles ) 
-                    {
-                        Color color = t.calculateSurfaceColor( parameters.getLightPosition() , parameters.getLightColor() );
-                        t.getViewCoordinates(pointX,pointY);
-                        g.setColor(color);
-                        g.fillPolygon(pointX,pointY,3); 
-                    }
-                    time += System.currentTimeMillis();
-                    renderingTime += time;				
-                }
-
-                if ( parameters.isRenderMasses() ) 
-                {
-                    long time = -System.currentTimeMillis();				
-                    for ( Mass m : system.masses ) 
-                    {
-                        final Point p = modelToView( m.currentPosition , scaleX , scaleY );
-                        if ( m.isSelected() ) 
-                        {
-                            g.setColor(Color.RED );
-                            g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );
-                            g.setColor(Color.BLUE);
-                        } 
-                        else 
-                        {
-                            if ( m.isFixed() ) {
-                                g.setColor( Color.BLUE );
-                                g.fillRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
-                            } else {
-                                g.setColor( m.color );
-                                g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
-                            }
+                        if ( t2.noSideExceedsLengthSquared( maxLenSquared ) ) {
+                            triangles.add( t2 );
                         }
+                    } else {
+                        triangles.add( t1 );
+                        triangles.add( t2 );
                     }
-                    time += System.currentTimeMillis();
-                    renderingTime += time;					
                 }
-
-                // render springs
-                if ( parameters.isRenderSprings() || parameters.isRenderAllSprings() ) 
-                {
-                    long time = -System.currentTimeMillis();	
-                    g.setColor(Color.GREEN);
-                    for ( Spring s : system.getSprings() ) 
-                    {
-                        if ( s.doRender ) {
-                            final Point p1 = modelToView( s.m1.currentPosition );
-                            final Point p2 = modelToView( s.m2.currentPosition );
-                            g.setColor( s.color );
-                            g.drawLine( p1.x , p1.y , p2.x , p2.y );
-                        }
-                    }
-                    time += System.currentTimeMillis();
-                    renderingTime += time;					
-                }
-
-            } finally {
-                system.unlock();
             }
-        } // END: Critical section		
+
+            // sort by Z-coordinate and draw from back to front
+            Collections.sort( triangles );
+
+            final int[] pointX = new int[3];
+            final int[] pointY = new int[3];					
+            for ( Triangle t : triangles ) 
+            {
+                Color color = t.calculateSurfaceColor( parameters.getLightPosition() , parameters.getLightColor() );
+                t.getViewCoordinates(pointX,pointY);
+                g.setColor(color);
+                g.fillPolygon(pointX,pointY,3); 
+            }
+        }
+
+        if ( parameters.isRenderMasses() ) 
+        {
+            for ( Mass m : system.masses ) 
+            {
+                final Point p = modelToView( m.currentPosition , scaleX , scaleY );
+                if ( m.isSelected() ) 
+                {
+                    g.setColor(Color.RED );
+                    g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );
+                    g.setColor(Color.BLUE);
+                } 
+                else 
+                {
+                    if ( m.isFixed() ) {
+                        g.setColor( Color.BLUE );
+                        g.fillRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
+                    } else {
+                        g.setColor( m.color );
+                        g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
+                    }
+                }
+            }
+        }
+
+        // render springs
+        if ( parameters.isRenderSprings() || parameters.isRenderAllSprings() ) 
+        {
+            g.setColor(Color.GREEN);
+            for ( Spring s : system.getSprings() ) 
+            {
+                if ( s.doRender ) {
+                    final Point p1 = modelToView( s.m1.currentPosition );
+                    final Point p2 = modelToView( s.m2.currentPosition );
+                    g.setColor( s.color );
+                    g.drawLine( p1.x , p1.y , p2.x , p2.y );
+                }
+            }
+        }
     }	
 }
