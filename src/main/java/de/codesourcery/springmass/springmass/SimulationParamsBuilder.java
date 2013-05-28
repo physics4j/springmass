@@ -218,32 +218,33 @@ public class SimulationParamsBuilder {
 		reset();
 	}
 	
-	public void reset() {
+	public void reset() 
+	{
 		xResolution = 1000;
 		yResolution = 1000;
-
-		springDampening=3;
-		springCoefficient=0.3;	
-
-		lightSurfaces = true;
-		lightColor = new Color(50, 50, 200);
-		
-		renderAllSprings = false;
-		renderSprings = false;
-		renderMasses = false;
-		
-		particleMass = 1.0;
-
-		mouseDragZDepth = -100;
-
-		verticalRestLengthFactor = 0.4;
-		horizontalRestLengthFactor = 1;
-
-		gravity = 50;
 
 		gridColumnCount = 66;
 		gridRowCount = 44;
 		
+		gravity = 50;
+		maxParticleSpeed = 30;
+		
+		particleMass = 1.0;
+		springDampening=3;
+		springCoefficient=0.3;	
+		
+		maxSpringLength = -1;		
+		verticalRestLengthFactor = 0.4;
+		horizontalRestLengthFactor = 1;		
+
+		lightSurfaces = true;
+		lightColor = new Color(50, 50, 200);
+		renderAllSprings = false;
+		renderSprings = false;
+		renderMasses = false;
+		
+		mouseDragZDepth = -100;
+
 		integrationTimeStep = 50;
 		iterationCount = 5;		
 		forkJoinBatchSize = 250;	
@@ -251,9 +252,6 @@ public class SimulationParamsBuilder {
 		debugPerformance=false;		
 		desiredFPS = 60;
 		waitForVSync = true;		
-		
-		maxParticleSpeed = 30;
-		maxSpringLength = -1;
 		
 		updateLightPosition();
 	}
