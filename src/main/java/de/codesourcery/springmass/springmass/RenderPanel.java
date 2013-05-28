@@ -379,6 +379,8 @@ public final class RenderPanel extends Canvas {
         
         g.drawString( "Avg. FPS: "+FPS_FORMAT.format( currentAvgFPS ) , 5, 15 );
         
+        g.drawString("Left-click to drag cloth , right-click to pin/unpin particles"  , 5, getHeight()-15 );
+        
         final double scaleX = getWidth() / (double) parameters.getXResolution();
         final double scaleY = getHeight() / (double) parameters.getYResolution();
 
