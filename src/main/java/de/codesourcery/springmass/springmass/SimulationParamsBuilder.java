@@ -225,10 +225,11 @@ public class SimulationParamsBuilder {
 		springDampening=3;
 		springCoefficient=0.3;	
 
+		lightSurfaces = true;
+		lightColor = new Color(50, 50, 200);
+		
 		renderAllSprings = false;
-
-		renderSprings = true;
-
+		renderSprings = false;
 		renderMasses = false;
 		
 		particleMass = 1.0;
@@ -238,23 +239,18 @@ public class SimulationParamsBuilder {
 		verticalRestLengthFactor = 0.4;
 		horizontalRestLengthFactor = 1;
 
-		lightSurfaces = false;
-		
-		lightColor = new Color(50, 50, 200);
-
 		gravity = 50;
 
 		gridColumnCount = 66;
-		gridRowCount = 66;
+		gridRowCount = 44;
 		
 		integrationTimeStep = 50;
-		iterationCount = 33;		
+		iterationCount = 5;		
 		forkJoinBatchSize = 250;	
 		
-		debugPerformance=true;
-		
+		debugPerformance=false;		
 		desiredFPS = 60;
-		waitForVSync = false;		
+		waitForVSync = true;		
 		
 		maxParticleSpeed = 30;
 		maxSpringLength = -1;
