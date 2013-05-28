@@ -39,8 +39,6 @@ import javax.swing.JTextField;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import com.sun.xml.internal.messaging.saaj.packaging.mime.internet.ParseException;
-
 import de.codesourcery.springmass.math.Vector4;
 import de.codesourcery.springmass.springmass.SimulationParamsBuilder.SimulationParameter;
 import de.codesourcery.springmass.springmass.SimulationParamsBuilder.SliderHint;
@@ -373,11 +371,9 @@ public abstract class ControlPanel extends JPanel {
 		
 		private final SliderHint hint;
 		private final double g;
-		private final SimulationParameter parameter;
 		
-		public SliderHelper(SimulationParameter p , SliderHint hint) {
+		public SliderHelper(SliderHint hint) {
 			this.hint = hint;
-			this.parameter = p;
 			g = hint.getMaxValue() - hint.getMinValue();
 		}
 		
@@ -407,7 +403,7 @@ public abstract class ControlPanel extends JPanel {
 		
 		final JTextField textfield = new JTextField();
 		
-		final SliderHelper helper = new SliderHelper( p , hint );
+		final SliderHelper helper = new SliderHelper( hint );
 		
 		final int sliderValue = helper.toSliderValue( ((Number) p.getValue() ).doubleValue() );
 		final JSlider slider = new JSlider( JSlider.HORIZONTAL, 0 , SLIDER_MAX , sliderValue );

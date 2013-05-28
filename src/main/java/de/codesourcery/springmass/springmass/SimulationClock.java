@@ -20,16 +20,14 @@ import java.util.concurrent.CountDownLatch;
 public abstract class SimulationClock extends Thread 
 {
 	private final Object LOCK = new Object();
-	private final SimulationParameters parameters;
 
 	private boolean runSimulation = false;
 	private volatile boolean terminate;
 	private final CountDownLatch threadTermination = new CountDownLatch(1);
 
-	public SimulationClock(SimulationParameters parameters) {
+	public SimulationClock() {
 	    setName("simulation-thread");
 		setDaemon(true);
-		this.parameters = parameters;
 	}
 
 	public void stopClock() 

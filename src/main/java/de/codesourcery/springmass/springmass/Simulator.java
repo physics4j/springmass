@@ -27,7 +27,7 @@ public abstract class Simulator {
 		this.parameters = parameters;
 		this.system = new SpringMassSystemFactory().create(parameters);
 
-		this.simulationClock = new SimulationClock(parameters) {
+		this.simulationClock = new SimulationClock() {
 
 			private long tickCounter = 0;
 			private long minTime=Long.MAX_VALUE;
