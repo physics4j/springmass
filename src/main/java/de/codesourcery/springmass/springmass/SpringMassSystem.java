@@ -29,7 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import de.codesourcery.springmass.math.Vector4;
 
-public class SpringMassSystem 
+public final class SpringMassSystem 
 {
     private final ReentrantLock lock = new ReentrantLock();	
     private final ThreadPoolExecutor threadPool;

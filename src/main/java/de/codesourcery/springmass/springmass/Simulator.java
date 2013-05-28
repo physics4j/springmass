@@ -59,7 +59,7 @@ public abstract class Simulator {
 
 				if ( parameters.isDebugPerformance() && (tickCounter%30) == 0 ) 
 				{
-				    final int avgTime = Math.round( sumTime / (float) tickCounter ); 
+				    final float avgTime = sumTime / (float) tickCounter; 
 					System.out.println("Simulation time: current: "+stepTime+" ms / min: "+minTime+" ms / avg: "+avgTime+" ms / max: "+maxTime+" ms");
 				}
 				
