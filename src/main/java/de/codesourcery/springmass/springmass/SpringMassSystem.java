@@ -21,6 +21,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +51,7 @@ public final class SpringMassSystem
 
     protected abstract class ParallelTaskCreator<T> 
     {
-        public abstract Runnable createTask(List<T> chunk,AtomicInteger taskFinishedLatch);
+        public abstract Runnable createTask(List<T> chunk,CountDownLatch taskFinishedLatch);
     }    
 
     public SpringMassSystem createCopy() 
@@ -286,7 +287,7 @@ public final class SpringMassSystem
         final ParallelTaskCreator<Spring> creator = new ParallelTaskCreator<Spring>() {
 
             @Override
-            public Runnable createTask(final List<Spring> chunk,final AtomicInteger taskFinishedLatch)
+            public Runnable createTask(final List<Spring> chunk,final CountDownLatch taskFinishedLatch)
             {
                 return new Runnable() {
 
@@ -302,10 +303,9 @@ public final class SpringMassSystem
                         } 
                         finally 
                         {
-                            taskFinishedLatch.decrementAndGet();
+                            taskFinishedLatch.countDown();
                         }
                     }
-
                 };
             }
         };
@@ -318,7 +318,7 @@ public final class SpringMassSystem
         final ParallelTaskCreator<Mass> creator = new ParallelTaskCreator<Mass>() {
 
             @Override
-            public Runnable createTask(final List<Mass> chunk,final AtomicInteger taskFinishedLatch)
+            public Runnable createTask(final List<Mass> chunk,final CountDownLatch taskFinishedLatch)
             {
                 return new Runnable() {
 
@@ -328,7 +328,7 @@ public final class SpringMassSystem
                         try {
                             applyForces( chunk , gravity );
                         } finally {
-                            taskFinishedLatch.decrementAndGet();
+                            taskFinishedLatch.countDown();
                         }
                     }
                 };
@@ -385,13 +385,16 @@ public final class SpringMassSystem
     private <T> void forEachParallel(List<T> data,ParallelTaskCreator<T> taskCreator,int chunkSize) {
 
         final List<List<T>> chunks = splitList( data , chunkSize );
-        final AtomicInteger latch = new AtomicInteger(chunks.size());
+        final CountDownLatch latch = new CountDownLatch(chunks.size());
         for ( List<T> chunk : chunks )
         {
             threadPool.submit( taskCreator.createTask( chunk , latch ) );
         }
 
-        while( latch.get() > 0 ) {
+        try {
+        	latch.await();
+        } catch(Exception e) {
+        	e.printStackTrace();
         }
     }
 
