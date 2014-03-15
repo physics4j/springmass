@@ -16,6 +16,7 @@
 package de.codesourcery.springmass.springmass;
 
 import java.awt.Color;
+import java.util.Random;
 
 import de.codesourcery.springmass.math.Vector4;
 
@@ -64,7 +65,8 @@ public class SpringMassSystemFactory {
 			}
 		}
 		
-		final SpringMassSystem system = new SpringMassSystem(parameters,masses);
+		final Random random = new Random(0xdeadbeef);
+		final SpringMassSystem system = new SpringMassSystem(parameters,masses,random);
 
 		// connect masses horizontally
 		final double horizRestLength = scaleX*parameters.getHorizontalRestLengthFactor();

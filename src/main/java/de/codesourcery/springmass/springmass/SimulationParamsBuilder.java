@@ -69,6 +69,8 @@ public class SimulationParamsBuilder {
 
 	private double verticalRestLengthFactor; 
 	private double horizontalRestLengthFactor;
+	
+	private final WindParameters windParameters = new WindParameters();
 
 	private boolean lightSurfaces;
 	
@@ -125,6 +127,13 @@ public class SimulationParamsBuilder {
 		public double minValue();
 		public double maxValue();
 	}	
+	
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.METHOD)
+	public @interface Label
+	{ 
+		public String value();
+	}		
 	
 	/**
 	 * A simulation parameter.
@@ -253,6 +262,17 @@ public class SimulationParamsBuilder {
 		desiredFPS = 60;
 		waitForVSync = true;		
 		
+		this.windParameters.setMinDirection( new Vector4(0,0,1,1 ) );
+		this.windParameters.setMaxDirection( new Vector4(-1,0,0,1 ) );
+		
+		this.windParameters.setMinForce( 0);
+		this.windParameters.setMaxForce( 0.01f );
+		
+		this.windParameters.setStepsUntilDirectionAdjusted( 240 );
+		this.windParameters.setStepsUntilDirectionChanged( 240 );
+		
+		this.windParameters.setEnabled(false);
+		
 		updateLightPosition();
 	}
 	
@@ -268,7 +288,7 @@ public class SimulationParamsBuilder {
 				verticalRestLengthFactor, horizontalRestLengthFactor, 
 				lightSurfaces, lightPosition, lightColor, gravity, 
 				gridColumnCount, gridRowCount, maxParticleSpeed, forkJoinBatchSize,springCoefficient , springDampening,particleMass,debugPerformance,
-				integrationTimeStep,maxSpringLength,getIterationCount(),waitForVSync);
+				integrationTimeStep,maxSpringLength,getIterationCount(),waitForVSync , windParameters );
 	}
 	
 	public double getMaxSpringLength() {
@@ -438,6 +458,29 @@ public class SimulationParamsBuilder {
 	
 	private String extractParameterName(Method m) 
 	{
+		Method methodWithLabel = null;
+		if ( isParameterGetter( m ) ) {
+			// look for @Label on corresponding setter
+			if ( m.getName().startsWith("get") || m.getName().startsWith("is") ) 
+			{
+				final int charsToRemove = m.getName().startsWith("get") ? 3 : 2;
+				final String setterName = "set"+m.getName().substring( charsToRemove );
+				try {
+					methodWithLabel = m.getDeclaringClass().getMethod( setterName , new Class<?>[] { m.getReturnType() } );
+				} 
+				catch (NoSuchMethodException | SecurityException e) { /* ok */ }
+			} 
+		} else {
+			methodWithLabel = m;
+		}
+		
+		if ( methodWithLabel != null ) {
+			final Label label = methodWithLabel.getAnnotation(Label.class);
+			if ( label != null && ! StringUtils.isBlank( label.value() ) ) {
+				return label.value();
+			}			
+		}
+		
 		String name;
 		if ( m.getName().startsWith("set") ||  m.getName().startsWith("get")) {
 			name = m.getName().substring(3);
@@ -688,7 +731,7 @@ public class SimulationParamsBuilder {
     {
         return iterationCount;
     }
-
+    
     @ValueRange(minValue=1,maxValue=30)
     public void setIterationCount(int iterationCount)
     {
@@ -703,5 +746,52 @@ public class SimulationParamsBuilder {
     public void setWaitForVSync(boolean waitForVSync)
     {
         this.waitForVSync = waitForVSync;
+    }
+    
+    public float getMinWindForce() {
+    	return windParameters.getMinForce();
+    }
+    
+    @ValueRange(minValue=0,maxValue=100)
+    @Label("Wind: Min. force")
+    public void setMinWindForce(float value) {
+    	windParameters.setMinForce(value);
+    } 
+    
+    public float getMaxWindForce() {
+    	return windParameters.getMaxForce();
+    }
+    
+    @ValueRange(minValue=0,maxValue=100)
+    @Label("Wind: Max. force")    
+    public void setMaxWindForce(float value) {
+    	windParameters.setMaxForce(value);
+    }     
+    
+    public Vector4 getMinWindDirection() {
+    	return windParameters.getMinDirection();
+    }
+    
+    @Label("Wind: Min. direction")    
+    public void setMinWindDirection(Vector4 dir) {
+    	windParameters.setMinDirection(dir);
+    }    
+    
+    public Vector4 getMaxWindDirection() {
+    	return windParameters.getMaxDirection();
+    }
+    
+    @Label("Wind: Max. direction")    
+    public void setMaxWindDirection(Vector4 dir) {
+    	windParameters.setMaxDirection(dir);
+    }
+    
+    public boolean getWindEnabled() {
+    	return windParameters.isEnabled();
+    }
+    
+    @Label("Wind: enabled?")
+    public void setWindEnabled(boolean yesNo) {
+    	windParameters.setEnabled( yesNo );
     }
 }

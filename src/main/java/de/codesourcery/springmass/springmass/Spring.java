@@ -31,7 +31,7 @@ public final class Spring {
     public final boolean doRender;
 
     public final Color color;
-
+    
     /*  double im1 = 1/m1.mass; 
      *  double im2 = 1/m2.mass; 
      *  double ratio = im1 / (im1 + im2);

@@ -52,6 +52,7 @@ public final class SimulationParameters
 	private final Vector4 lightPosition;
 	private final Vector4 lightColor;
 
+	private final WindParameters windParameters = new WindParameters();
 	private final double gravity;
 	
 	private final int gridColumnCount;
@@ -62,15 +63,33 @@ public final class SimulationParameters
 	
 	private final double integratonTimeStep;
 
-	public SimulationParameters(int xResolution, int yResolution,
-			float desiredFPS, boolean renderAllLines, boolean renderSprings,
-			boolean renderMasses, double mouseDragZDepth,
-			double verticalRestLengthFactor, double horizontalRestLengthFactor,
-			boolean lightSurfaces, Vector4 lightPosition, Color lightColor,
-			double gravity, int gridColumnCount, int gridRowCount,
-			double maxParticleSpeed, int forkJoinBatchSize,
-			double springCoefficient,double springDampening,double particleMass,
-			boolean debugPerformance,double integratonTimeStep,double maxSpringLength,int iterationCount,boolean waitForVSync) 
+	public SimulationParameters(int xResolution, 
+			int yResolution,
+			float desiredFPS, 
+			boolean renderAllLines, 
+			boolean renderSprings,
+			boolean renderMasses, 
+			double mouseDragZDepth,
+			double verticalRestLengthFactor, 
+			double horizontalRestLengthFactor,
+			boolean lightSurfaces, 
+			Vector4 lightPosition, 
+			Color lightColor,
+			double gravity, 
+			
+			int gridColumnCount, 
+			int gridRowCount,
+			double maxParticleSpeed, 
+			int forkJoinBatchSize,
+			double springCoefficient,
+			double springDampening,
+			double particleMass,
+			boolean debugPerformance,
+			double integratonTimeStep,
+			double maxSpringLength,
+			int iterationCount,
+			boolean waitForVSync,
+			WindParameters windParameters) 
 	{
 		this.xResolution = xResolution;
 		this.yResolution = yResolution;
@@ -97,6 +116,7 @@ public final class SimulationParameters
 		this.integratonTimeStep = integratonTimeStep;
 		this.iterationCount = iterationCount;
 		this.waitForVSync = waitForVSync;
+		this.windParameters.set( windParameters );
 	}
 	
 	public boolean isWaitForVSync()
@@ -104,7 +124,7 @@ public final class SimulationParameters
         return waitForVSync;
     }
 	
-	public double getIntegratonTimeStep() {
+	public double getIntegrationTimeStep() {
 		return integratonTimeStep;
 	}
 	
@@ -200,4 +220,8 @@ public final class SimulationParameters
     {
         return iterationCount;
     }
+	
+	public WindParameters getWindParameters() {
+		return windParameters;
+	}
 }
