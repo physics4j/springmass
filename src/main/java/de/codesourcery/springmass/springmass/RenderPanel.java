@@ -448,26 +448,30 @@ public final class RenderPanel extends Canvas {
 
         if ( parameters.isRenderMasses() ) 
         {
-            for ( Mass m : system.masses ) 
-            {
-                final Point p = modelToView( m.currentPosition , scaleX , scaleY );
-                if ( m.isSelected() ) 
-                {
-                    g.setColor(Color.RED );
-                    g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );
-                    g.setColor(Color.BLUE);
-                } 
-                else 
-                {
-                    if ( m.isFixed() ) {
-                        g.setColor( Color.BLUE );
-                        g.fillRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
-                    } else {
-                        g.setColor( m.color );
-                        g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
-                    }
-                }
-            }
+        	for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
+        	{
+            	for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
+            	{
+            		final Mass m = system.massArray[x][y];
+                    final Point p = modelToView( m.currentPosition , scaleX , scaleY );
+                    if ( m.isSelected() ) 
+                    {
+                        g.setColor(Color.RED );
+                        g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );
+                        g.setColor(Color.BLUE);
+                    } 
+                    else 
+                    {
+                        if ( m.isFixed() ) {
+                            g.setColor( Color.BLUE );
+                            g.fillRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
+                        } else {
+                            g.setColor( m.color );
+                            g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
+                        }
+                    }            		
+            	}
+        	}
         }
 
         // render springs

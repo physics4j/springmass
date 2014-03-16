@@ -235,8 +235,8 @@ public class SimulationParamsBuilder {
 		gridColumnCount = 66;
 		gridRowCount = 44;
 		
-		gravity = 50;
-		maxParticleSpeed = 30;
+		gravity = 30;
+		maxParticleSpeed = 40;
 		
 		particleMass = 1.0;
 		springDampening=3;
@@ -262,14 +262,16 @@ public class SimulationParamsBuilder {
 		desiredFPS = 60;
 		waitForVSync = true;		
 		
-		this.windParameters.setMinDirection( new Vector4(0,0,1,1 ) );
-		this.windParameters.setMaxDirection( new Vector4(-1,0,0,1 ) );
+		final float oneDegree = (float) (2f*Math.PI)/360.0f;
+		final float maxAngle = (float) (2*Math.PI - oneDegree);
+		this.windParameters.setMinAngle( new SphericalCoordinates( 0 , 0 ) );
+		this.windParameters.setMaxAngle( new SphericalCoordinates( maxAngle , maxAngle ) );
 		
-		this.windParameters.setMinForce( 0);
-		this.windParameters.setMaxForce( 0.01f );
+		this.windParameters.setMinForce( 30 );
+		this.windParameters.setMaxForce( 60 );
 		
-		this.windParameters.setStepsUntilDirectionAdjusted( 240 );
-		this.windParameters.setStepsUntilDirectionChanged( 240 );
+		this.windParameters.setStepsUntilDirectionAdjusted( 60 );
+		this.windParameters.setStepsUntilDirectionChanged( 60 );
 		
 		this.windParameters.setEnabled(false);
 		
@@ -768,24 +770,6 @@ public class SimulationParamsBuilder {
     	windParameters.setMaxForce(value);
     }     
     
-    public Vector4 getMinWindDirection() {
-    	return windParameters.getMinDirection();
-    }
-    
-    @Label("Wind: Min. direction")    
-    public void setMinWindDirection(Vector4 dir) {
-    	windParameters.setMinDirection(dir);
-    }    
-    
-    public Vector4 getMaxWindDirection() {
-    	return windParameters.getMaxDirection();
-    }
-    
-    @Label("Wind: Max. direction")    
-    public void setMaxWindDirection(Vector4 dir) {
-    	windParameters.setMaxDirection(dir);
-    }
-    
     public boolean getWindEnabled() {
     	return windParameters.isEnabled();
     }
@@ -794,4 +778,56 @@ public class SimulationParamsBuilder {
     public void setWindEnabled(boolean yesNo) {
     	windParameters.setEnabled( yesNo );
     }
+    
+	public int getWindStepsUntilDirectionAdjusted() {
+		return this.windParameters.getStepsUntilDirectionAdjusted();
+	}
+	
+	@ValueRange(minValue=1,maxValue=10000)
+	@Label("Wind: steps until adjustment")
+	public void setWindStepsUntilDirectionAdjusted(int steps) {
+		this.windParameters.setStepsUntilDirectionAdjusted(steps);
+	}	
+	
+	public int getWindStepsUntilDirectionChanged() {
+		return this.windParameters.getStepsUntilDirectionChanged();
+	}
+	
+	@ValueRange(minValue=1,maxValue=10000)
+	@Label("Wind: steps until wind change")
+	public void setWindStepsUntilDirectionChanged(int steps) {
+		this.windParameters.setStepsUntilDirectionChanged(steps);
+	}	
+	
+	public void setMaxXYAngleInRad(float maxXYAngleInRad) {
+		this.windParameters.getMaxAngle().setXYAngleInRad( maxXYAngleInRad );
+	}
+	
+	public float getMaxXYAngleInRad() {
+		return this.windParameters.getMaxAngle().getXYAngleInRad();
+	}
+	
+	public void setMaxXZAngleInRad(float maxXZAngleInRad) {
+		windParameters.getMaxAngle().setXZAngleInRad( maxXZAngleInRad );
+	}
+	
+	public float getMaxXZAngleInRad() {
+		return windParameters.getMaxAngle().getXZAngleInRad();
+	}
+	
+	public void setMinXYAngleInRad(float minXYAngleInRad) {
+		this.windParameters.getMinAngle().setXYAngleInRad( minXYAngleInRad );
+	}
+	
+	public float getMinXYAngleInRad() {
+		return this.windParameters.getMinAngle().getXYAngleInRad();
+	}
+	
+	public void setMinXZAngleInRad(float minXZAngleInRad) {
+		this.windParameters.getMinAngle().setXZAngleInRad( minXZAngleInRad );
+	}
+	
+	public float getMinXZAngleInRad() {
+		return this.windParameters.getMinAngle().getXZAngleInRad();
+	}	
 }

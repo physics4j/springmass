@@ -4,8 +4,8 @@ import de.codesourcery.springmass.math.Vector4;
 
 public final class WindParameters {
 
-	private final Vector4 minDirection=new Vector4(); // normalized vector
-	private final Vector4 maxDirection=new Vector4(); // normalized vector
+	private final SphericalCoordinates minAngle=new SphericalCoordinates();
+	private final SphericalCoordinates maxAngle=new SphericalCoordinates();
 	
 	private float minForce;
 	private float maxForce;
@@ -24,8 +24,8 @@ public final class WindParameters {
 	
 	public void set(WindParameters other) 
 	{
-		this.minDirection.set( other.minDirection );
-		this.maxDirection.set( other.maxDirection );
+		this.minAngle.set( other.minAngle );
+		this.maxAngle.set( other.maxAngle );
 		
 		this.minForce = other.minForce;
 		this.maxForce = other.maxForce;
@@ -82,21 +82,19 @@ public final class WindParameters {
 		this.maxForce = maxForce;
 	}
 
-	public Vector4 getMinDirection() {
-		return minDirection;
+	public void setMinAngle(SphericalCoordinates coords) {
+		this.minAngle.set( coords );
 	}
 	
-	public void setMinDirection(Vector4  dir) {
-		minDirection.set(dir);
-		minDirection.normalizeInPlace();
-	}
-
-	public Vector4 getMaxDirection() {
-		return maxDirection;
+	public void setMaxAngle(SphericalCoordinates coords) {
+		this.maxAngle.set( coords );
 	}
 	
-	public void setMaxDirection(Vector4 dir) {
-		maxDirection.set(dir);
-		maxDirection.normalizeInPlace();
-	}	
+	public SphericalCoordinates getMinAngle() {
+		return minAngle;
+	}
+	
+	public SphericalCoordinates getMaxAngle() {
+		return maxAngle;
+	}
 }

@@ -74,8 +74,8 @@ public class WindSimulator {
 			directionIncrement.set(0,0,0);
 			forceIncrement=0;
 			desiredForce=currentForce=0;
-			currentDirection.set( params.getMinDirection() );
-			desiredDirection.set( currentDirection );
+			currentDirection.setToZero();
+			desiredDirection.setToZero();
 			System.out.println("*** ["+stepCount+"] wind: DISABLED");
 			return;
 		}
@@ -84,22 +84,28 @@ public class WindSimulator {
 		desiredForce = params.getMinForce()+random.nextFloat()*( params.getMaxForce() - params.getMinForce() );
 		forceIncrement = (desiredForce - currentForce)/(float) params.getStepsUntilDirectionAdjusted(); 
 		
-		System.out.println("*** ["+stepCount+"] wind: current_force="+currentForce+", new_force="+desiredForce+" , increment="+forceIncrement+" ( "+params.getStepsUntilDirectionAdjusted()+" steps)");
+		// System.out.println("*** ["+stepCount+"] wind: current_force="+currentForce+", new_force="+desiredForce+" , increment="+forceIncrement+" ( "+params.getStepsUntilDirectionAdjusted()+" steps)");
 		
 		// generate new random direction
-		desiredDirection.set( params.getMaxDirection() );
-		desiredDirection.minusInPlace( params.getMinDirection() );
-		double len = desiredDirection.length();
 		
-		double factor = random.nextFloat()*len;
-		desiredDirection.multiplyAddInPlace( factor , params.getMinDirection() );
+		final float minXZAngleInRad = SphericalCoordinates.getMinXZAngleInRad( params.getMinAngle() , params.getMaxAngle() );
+		final float maxXZAngleInRad = SphericalCoordinates.getMaxXZAngleInRad( params.getMinAngle() , params.getMaxAngle() );
+		
+		final float minXYAngleInRad = SphericalCoordinates.getMinXYAngleInRad( params.getMinAngle() , params.getMaxAngle() );
+		final float maxXYAngleInRad = SphericalCoordinates.getMaxXYAngleInRad( params.getMinAngle() , params.getMaxAngle() );		
+		
+		final float newXZAngleInRad = minXZAngleInRad+random.nextFloat()*(maxXZAngleInRad-minXZAngleInRad);
+		final float newXYAngleInRad = minXYAngleInRad+random.nextFloat()*(maxXYAngleInRad-minXYAngleInRad);		
+		
+		desiredDirection.set( new SphericalCoordinates( newXZAngleInRad , newXYAngleInRad ).toUnitVector() );
 		
 		directionIncrement.set( desiredDirection );
 		directionIncrement.minusInPlace( currentDirection );
+		
+		// TODO: Might look even nicer if we don't interpolate linearly but use spherical coordinates here as well...
 		directionIncrement.multiplyInPlace( 1.0/ params.getStepsUntilDirectionAdjusted() );
 		
-		System.out.println("*** ["+stepCount+"] wind: current_direction="+currentDirection+", new_direction="+desiredDirection+" , increment="+directionIncrement+" ( "+params.getStepsUntilDirectionAdjusted()+" steps)");
-				
+		// System.out.println("*** ["+stepCount+"] wind: current_direction="+currentDirection+", new_direction="+desiredDirection+" , increment="+directionIncrement+" ( "+params.getStepsUntilDirectionAdjusted()+" steps)");
 	}
 	
 	public void getCurrentWindVector(Vector4 v) {
