@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch;
 
 import de.codesourcery.springmass.math.Vector4;
 
-public final class RenderPanel extends Canvas {
+public final class RenderPanel extends Canvas implements IRenderPanel {
 
     private final Object SIMULATION_LOCK = new Object();
 
@@ -188,7 +188,6 @@ public final class RenderPanel extends Canvas {
         setFocusable(true);
         addComponentListener( new ComponentAdapter() 
         {
-
             @Override
             public void componentShown(ComponentEvent e) 
             {
@@ -211,7 +210,11 @@ public final class RenderPanel extends Canvas {
         });
     }
 
-    public void setSimulator(Simulator simulator) 
+    /* (non-Javadoc)
+	 * @see de.codesourcery.springmass.springmass.IRenderPanel#setSimulator(de.codesourcery.springmass.springmass.Simulator)
+	 */
+    @Override
+	public void setSimulator(Simulator simulator) 
     {
         synchronized (SIMULATION_LOCK) 
         {
@@ -221,7 +224,11 @@ public final class RenderPanel extends Canvas {
         }
     }
 
-    public void addTo(Container container) 
+    /* (non-Javadoc)
+	 * @see de.codesourcery.springmass.springmass.IRenderPanel#addTo(java.awt.Container)
+	 */
+    @Override
+	public void addTo(Container container) 
     {
         container.add( this );
 
@@ -231,21 +238,33 @@ public final class RenderPanel extends Canvas {
         }
     }
 
-    public Vector4 viewToModel(int x,int y) {
+    /* (non-Javadoc)
+	 * @see de.codesourcery.springmass.springmass.IRenderPanel#viewToModel(int, int)
+	 */
+    @Override
+	public Vector4 viewToModel(int x,int y) {
 
         double scaleX = getWidth() / (double) parameters.getXResolution();
         double scaleY = getHeight() / (double) parameters.getYResolution();
         return new Vector4( x / scaleX , y / scaleY , 0 );
     }
 
-    public Point modelToView(Vector4 vec) 
+    /* (non-Javadoc)
+	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelToView(de.codesourcery.springmass.math.Vector4)
+	 */
+    @Override
+	public Point modelToView(Vector4 vec) 
     {
         double scaleX = getWidth() / (double) parameters.getXResolution();
         double scaleY = getHeight() / (double) parameters.getYResolution();
         return modelToView( vec , scaleX , scaleY ); 
     }
 
-    public Point modelToView(Vector4 vec,double scaleX,double scaleY) 
+    /* (non-Javadoc)
+	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelToView(de.codesourcery.springmass.math.Vector4, double, double)
+	 */
+    @Override
+	public Point modelToView(Vector4 vec,double scaleX,double scaleY) 
     {
         return new Point( (int) Math.round( vec.x * scaleX ) , (int) Math.round( vec.y * scaleY ) );
     }		
@@ -317,7 +336,11 @@ public final class RenderPanel extends Canvas {
         }
     }	
     
-    public void modelChanged() 
+    /* (non-Javadoc)
+	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelChanged()
+	 */
+    @Override
+	public void modelChanged() 
     {
         synchronized (SIMULATION_LOCK) 
         {                

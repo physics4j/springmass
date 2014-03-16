@@ -37,7 +37,7 @@ public class Main extends Frame {
 	// @GuardedBy( SIMULATOR_LOCK )
 	private SimulationParameters parameters;
 
-	private final RenderPanel renderPanel;
+	private final IRenderPanel renderPanel;
 
 	public static void main(String[] args) 
 	{
@@ -162,13 +162,12 @@ public class Main extends Frame {
 
 				if ( button == MouseEvent.BUTTON1 || button == MouseEvent.BUTTON3 ) 
 				{ 
-					// left click
 					final Mass nearest = getNearestMass( e.getX() , e.getY() );
-					if ( button == MouseEvent.BUTTON1 ) 
+					if ( button == MouseEvent.BUTTON1 ) // left click 
 					{
 						setSelected( nearest );
 					} 
-					else 
+					else  // right click
 					{
 						if ( nearest != null ) 
 						{

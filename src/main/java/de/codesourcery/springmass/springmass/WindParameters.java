@@ -1,6 +1,5 @@
 package de.codesourcery.springmass.springmass;
 
-import de.codesourcery.springmass.math.Vector4;
 
 public final class WindParameters {
 

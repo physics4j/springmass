@@ -92,6 +92,9 @@ public final class SpringMassSystem
     	
     	private final boolean fetchNeighbours;
     	
+    	private final boolean isAtRightEdge; // used to determine whether it's safe to access the first column of the slice to the right of us 
+    	private final boolean isAtBottomEdge; // used to determine whether it's safe to access the first row of the slice to the below us
+    	
     	/**
     	 * 
     	 * @param x0
@@ -100,12 +103,14 @@ public final class SpringMassSystem
     	 * @param height
     	 * @param fetchNeighbours whether to also fetch the right and bottom neighbour of every element being traversed
     	 */
-    	public Slice(int x0,int y0,int width,int height,boolean fetchNeighbours) {
+    	public Slice(int x0,int y0,int width,int height,boolean fetchNeighbours,boolean isAtRightEdge,boolean isAtBottomEdge) {
     		this.xStart = x0;
     		this.yStart = y0;
     		this.xEnd = x0 + width;
     		this.yEnd = y0 + height;
     		this.fetchNeighbours = fetchNeighbours;
+    		this.isAtRightEdge = isAtRightEdge;
+    		this.isAtBottomEdge=isAtBottomEdge;
     	}
     	
     	@Override
@@ -135,8 +140,17 @@ public final class SpringMassSystem
     				public Mass next() 
     				{
     					final Mass result = array[x][y];
-   						rightNeighbour  = (x+1) < xEnd ? array[x+1][y] : null;
-    					bottomNeighbour = (y+1) < yEnd ? array[x][y+1] : null;
+    					if ( isAtRightEdge ) {
+    						rightNeighbour  = (x+1) < xEnd ? array[x+1][y] : null;
+    					} else {
+    						rightNeighbour  = array[x+1][y]; // TODO: hackish, another thread my manipulate this Mass instance concurrently...
+    					}
+    					
+    					if ( isAtBottomEdge ) {
+    						bottomNeighbour = (y+1) < yEnd ? array[x][y+1] : null;
+    					} else {
+    						bottomNeighbour = array[x][y+1];
+    					}
     					
     					x++;
     					if ( x >= xEnd) {
@@ -615,22 +629,25 @@ public final class SpringMassSystem
 		int x,y;
     	for ( y = 0; y < yEnd ; y+= vertSize ) 
     	{    	
+    		final boolean isAtBottomEdge = (y+vertSize) >= yEnd;
 	    	for ( x = 0 ; x < xEnd ; x+= horizSize ) 
 	    	{
-	    		result.add( new Slice( x , y , horizSize , vertSize , iteratorNeedsNeighbours ) );
+	    		boolean isAtRightEdge = (x+horizRest) >= xEnd;
+	    		result.add( new Slice( x , y , horizSize , vertSize , iteratorNeedsNeighbours , isAtRightEdge , isAtBottomEdge ) );
 	    	}
 	    	if ( horizRest > 0 ) {
-	    		result.add( new Slice( x , y , horizRest , vertSize , iteratorNeedsNeighbours ) );
+	    		result.add( new Slice( x , y , horizRest , vertSize , iteratorNeedsNeighbours , true , isAtBottomEdge  ) );
 	    	}
     	}
     	if ( vertRest > 0 ) 
     	{
 	    	for ( x = 0 ; x < xEnd ; x+= horizSize ) 
 	    	{
-	    		result.add( new Slice( x , y , horizSize , vertRest , iteratorNeedsNeighbours ) );
+	    		boolean isAtRightEdge = (x+horizRest) >= xEnd;
+	    		result.add( new Slice( x , y , horizSize , vertRest , iteratorNeedsNeighbours , isAtRightEdge , true ) );
 	    	}    
 	    	if ( horizRest > 0 ) {
-	    		result.add( new Slice( x , y , horizRest , vertRest , iteratorNeedsNeighbours ) );
+	    		result.add( new Slice( x , y , horizRest , vertRest , iteratorNeedsNeighbours , true , true ) );
 	    	}	    	
     	}
     	return result;
