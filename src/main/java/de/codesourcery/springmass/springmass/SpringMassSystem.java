@@ -54,9 +54,33 @@ public final class SpringMassSystem
 
     protected abstract class ParallelTaskCreator<T> 
     {
-        public abstract Runnable createTask(List<T> chunk,CountDownLatch taskFinishedLatch);
+        public abstract Runnable createTask(Iterable<T> chunk,CountDownLatch taskFinishedLatch);
     }    
-
+    
+    protected interface GridIterator extends Iterator<Mass> 
+    {
+    	/**
+    	 * Returns the mass right of the element returned by the last call to {@link #next()}. 
+    	 * @return mass or <code>null</code> if either <code>next()</code> has never been called
+    	 * or the element returned by <code>next()</code> was the right-most element in a row
+    	 */
+    	public Mass rightNeighbour();
+    	
+    	/**
+    	 * Returns the mass below the element returned by the last call to {@link #next()}. 
+    	 * @return mass or <code>null</code> if either <code>next()</code> has never been called
+    	 * or the element returned by <code>next()</code> is in the last row of a slice.
+    	 */    	
+    	public Mass bottomNeighbour();
+    }
+    
+	/**
+	 * Iterable view of a rectangular slice of the mass array.
+	 * 
+	 * <p>Used to distribute work across multiple CPU cores.</p>
+	 * 
+	 * @author tobias.gierke@code-sourcery.de
+	 */
     protected final class Slice implements Iterable<Mass> {
     	
     	private final int xStart;
@@ -65,16 +89,68 @@ public final class SpringMassSystem
     	private final int xEnd;
     	private final int yEnd;
     	
-    	public Slice(int x0,int y0,int width,int height) {
+    	private final boolean fetchNeighbours;
+    	
+    	/**
+    	 * 
+    	 * @param x0
+    	 * @param y0
+    	 * @param width
+    	 * @param height
+    	 * @param fetchNeighbours whether to also fetch the right and bottom neighbour of every element being traversed
+    	 */
+    	public Slice(int x0,int y0,int width,int height,boolean fetchNeighbours) {
     		this.xStart = x0;
     		this.yStart = y0;
     		this.xEnd = x0 + width;
     		this.yEnd = y0 + height;
+    		this.fetchNeighbours = fetchNeighbours;
     	}
     	
     	public Iterator<Mass> iterator() 
     	{
-    		return new Iterator<Mass>() 
+    		if ( fetchNeighbours) 
+    		{
+        		return new GridIterator() 
+        		{
+        	    	private int x = xStart;
+        	    	private int y = yStart;
+        	    	
+        	    	private Mass rightNeighbour;
+        	    	private Mass bottomNeighbour;
+        	    	
+    				@Override
+    				public boolean hasNext() 
+    				{
+    					return x < xEnd || y < yEnd;
+    				}
+
+    				@Override
+    				public Mass next() 
+    				{
+    					final Mass result = massArray[x][y];
+   						rightNeighbour  = (x+1) < xEnd ? massArray[x+1][y] : null;
+    					bottomNeighbour = (y+1) < yEnd ? massArray[x][y+1] : null;
+    					
+    					x++;
+    					if ( x >= xEnd) {
+    						x = xStart;
+    						y++;
+    					} 
+    					return result;
+    				}
+
+    				@Override
+    				public void remove() { throw new UnsupportedOperationException(); }
+
+    				@Override
+    				public Mass rightNeighbour() { return rightNeighbour; }
+
+    				@Override
+    				public Mass bottomNeighbour() { return bottomNeighbour; }
+        		};    			
+    		}
+    		return new GridIterator() 
     		{
     	    	private int x = xStart;
     	    	private int y = yStart;
@@ -88,8 +164,7 @@ public final class SpringMassSystem
 				@Override
 				public Mass next() 
 				{
-					final Mass result = massArray[x][y];
-					x++;
+					final Mass result = massArray[x++][y];
 					if ( x >= xEnd) {
 						x = xStart;
 						y++;
@@ -98,12 +173,18 @@ public final class SpringMassSystem
 				}
 
 				@Override
-				public void remove() {
-					throw new UnsupportedOperationException();
-				}
+				public void remove() { throw new UnsupportedOperationException(); }
+
+				@Override
+				public Mass rightNeighbour() { throw new UnsupportedOperationException("Wrong iterator type"); }
+
+				@Override
+				public Mass bottomNeighbour() { throw new UnsupportedOperationException("Wrong iterator type"); }
     		};
     	}
     }
+    
+    
     public SpringMassSystem createCopy() 
     {
         lock();
@@ -309,13 +390,9 @@ public final class SpringMassSystem
                 // apply spring forces to particles
                 if ( count == 1 ) 
                 {
-                	 // apply wind forces if enabled
-                    if ( params.getWindParameters().isEnabled() ) { 
-                    	applyWindForces();
-                    }
-                	applyForces( gravity ); // only apply gravity once                	
+                   	applyForces(gravity , params.getWindParameters().isEnabled() );
                 } else {
-                	applyForces( zeroGravity ); // only apply gravity once
+                	applyForces( zeroGravity , false ); // only apply gravity once
                 }
             }        	
         } 
@@ -324,33 +401,12 @@ public final class SpringMassSystem
         }
     }
     
-    private void applyWindForces() {
-    	
-    	final Vector4 windForce=new Vector4();
-    	windSimulator.getCurrentWindVector( windForce );
-    	
-    	final Vector4 normalizedWindForce=new Vector4( windForce );
-    	normalizedWindForce.normalizeInPlace();
-    	
-    	for ( int x = 0 ; x < params.getGridColumnCount()-1 ; x++ ) 
-    	{
-        	for ( int y = 0 ; y < params.getGridRowCount()-1 ; y++ ) 
-        	{
-        		applyWindForces( x, y , normalizedWindForce , windForce );
-        	}
-    	}
-    }
-
-    private void applyWindForces(int x, int y, Vector4 normalizedWindForce,Vector4 windForce) 
+    private Vector4 calculateWindForce(Mass mass,Mass rightNeighbour,Mass bottomNeighbour, Vector4 normalizedWindForce,Vector4 windForce) 
     {
-    	final Mass mass = massArray[x][y];
-    	final Mass m1 = massArray[x+1][y];
-    	final Mass m2 = massArray[x][y+1];
-    	
-    	final Vector4 v1 = new Vector4( m1.currentPosition );
+    	final Vector4 v1 = new Vector4( rightNeighbour.currentPosition );
     	v1.minusInPlace( mass.currentPosition );
     	
-    	final Vector4 v2 = new Vector4( m2.currentPosition );
+    	final Vector4 v2 = new Vector4( bottomNeighbour.currentPosition );
     	v2.minusInPlace( mass.currentPosition );    	
     	
     	// calculate vector perpendicular to plane
@@ -363,27 +419,7 @@ public final class SpringMassSystem
         // scale wind force by angle 
         final Vector4 sumForces = new Vector4( windForce );
         sumForces.multiply( angle );
-
-        // apply force
-        final double deltaTSquared = params.getIntegrationTimeStep();
-        
-        final Vector4 tmp = new Vector4(mass.currentPosition);
-
-        final Vector4 posDelta = mass.currentPosition.minus(mass.previousPosition);
-
-//        Vector4 dampening = posDelta.multiply( params.getSpringDampening() );
-//        sumForces.minusInPlace( dampening );
-
-        sumForces.multiplyInPlace( 1.0 / (mass.mass* deltaTSquared ) );
-        posDelta.plusInPlace( sumForces );
-
-        posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
-        mass.currentPosition.plusInPlace( posDelta );
-
-//        if ( mass.currentPosition.y > maxY) {
-//            mass.currentPosition.y = maxY;
-//        }
-        mass.previousPosition = tmp;        
+        return sumForces; 
 	}
 
 	private void removeBrokenSprings(List<Spring> springs) 
@@ -411,7 +447,7 @@ public final class SpringMassSystem
         final ParallelTaskCreator<Spring> creator = new ParallelTaskCreator<Spring>() {
 
             @Override
-            public Runnable createTask(final List<Spring> chunk,final CountDownLatch taskFinishedLatch)
+            public Runnable createTask(final Iterable<Spring> chunk,final CountDownLatch taskFinishedLatch)
             {
                 return new Runnable() {
 
@@ -437,12 +473,12 @@ public final class SpringMassSystem
         forEachParallel( springs,  creator ,  params.getForkJoinBatchSize()*5 );        
     }    
 
-    private void applyForces(final Vector4 gravity) 
+    private void applyForces(final Vector4 gravity,final boolean applyWind) 
     {
         final ParallelTaskCreator<Mass> creator = new ParallelTaskCreator<Mass>() {
 
             @Override
-            public Runnable createTask(final List<Mass> chunk,final CountDownLatch taskFinishedLatch)
+            public Runnable createTask(final Iterable<Mass> chunk,final CountDownLatch taskFinishedLatch)
             {
                 return new Runnable() {
 
@@ -462,7 +498,7 @@ public final class SpringMassSystem
         forEachParallel( masses,  creator ,  params.getForkJoinBatchSize() );
     }
 
-    private void applyForces(List<Mass> masses,Vector4 gravity) 
+    private void applyForces(Iterable<Mass> masses,Vector4 gravity) 
     {
         final double deltaTSquared = params.getIntegrationTimeStep();
 
@@ -520,6 +556,67 @@ public final class SpringMassSystem
         } catch(Exception e) {
         	e.printStackTrace();
         }
+    }
+    
+    private void forEachParallel(Mass[][] data,ParallelTaskCreator<Mass> taskCreator,int chunkSize) {
+
+        final List<Slice> chunks = splitArray( data , chunkSize );
+        final CountDownLatch latch = new CountDownLatch( chunks.size() );
+        for ( Slice chunk : chunks )
+        {
+            threadPool.submit( taskCreator.createTask( chunk , latch ) );
+        }
+
+        try {
+        	latch.await();
+        } catch(Exception e) {
+        	e.printStackTrace();
+        }
+    }    
+    
+    private <T> List<Slice> splitArray(final Mass[][] data,final int chunkSize) 
+    {
+    	int horizSize = (int) Math.sqrt( chunkSize );
+    	if ( horizSize < 1 ) {
+    		horizSize = 1;
+    	}
+    	
+    	final int vertSize = horizSize;
+    	
+    	final int horizSlices = params.getGridColumnCount() / horizSize;
+    	final int vertSlices = params.getGridRowCount() / vertSize;
+    	
+    	final int horizRest = params.getGridColumnCount() - horizSlices*horizSize;
+    	final int vertRest = params.getGridRowCount() - vertSlices*vertSize;
+    			
+    	final List<Slice> result = new ArrayList<>();
+    	
+    	// if wind is enabled we need to calculate the surface normal at each
+    	// mass point so we can properly calculate the force applied to the element 
+    	final boolean needNeighbours = params.getWindParameters().isEnabled();
+    	
+		int x,y;
+    	for ( y = 0; y < params.getGridRowCount() ; y+= vertSize ) 
+    	{    	
+	    	for ( x = 0 ; x < params.getGridColumnCount() ; x+= horizSize ) 
+	    	{
+	    		result.add( new Slice( x , y , horizSize , vertSize , needNeighbours ) );
+	    	}
+	    	if ( horizRest > 0 ) {
+	    		result.add( new Slice( x , y , horizRest , vertSize , needNeighbours ) );
+	    	}
+    	}
+    	if ( vertRest > 0 ) 
+    	{
+	    	for ( x = 0 ; x < params.getGridColumnCount() ; x+= horizSize ) 
+	    	{
+	    		result.add( new Slice( x , y , horizSize , vertRest , needNeighbours ) );
+	    	}    
+	    	if ( horizRest > 0 ) {
+	    		result.add( new Slice( x , y , horizRest , vertRest , needNeighbours ) );
+	    	}	    	
+    	}
+    	return result;
     }
 
     private <T> List<List<T>> splitList(final List<T> list,final int chunkSize) 
