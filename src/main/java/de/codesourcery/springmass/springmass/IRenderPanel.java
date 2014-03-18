@@ -23,6 +23,14 @@ public interface IRenderPanel {
            
 	public void modelChanged();
 	
+	/**
+	 * 
+	 * @param currentFPS average FPS to display
+	 * @return <code>true</code> if frame was actually rendered, <code>false</code> if rendering
+	 * was suppressed because of VSync limiting
+	 */
+    public boolean renderFrame(float currentFPS);
+	
 	public void addKeyListener( KeyListener listener);
 
 	public void addMouseListener( MouseListener listener);

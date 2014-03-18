@@ -22,12 +22,20 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
+import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
 
 import javax.swing.JFrame;
 
+import com.badlogic.gdx.Game;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
+import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 import com.badlogic.gdx.math.Vector3;
 
 public class Main extends Frame {
+
+	public static final boolean USE_OPENGL = true;
 
 	private final Object SIMULATOR_LOCK = new Object();
 
@@ -37,7 +45,7 @@ public class Main extends Frame {
 	// @GuardedBy( SIMULATOR_LOCK )
 	private SimulationParameters parameters;
 
-	private final IRenderPanel renderPanel;
+	private volatile IRenderPanel renderPanel;
 
 	public static void main(String[] args) 
 	{
@@ -48,24 +56,23 @@ public class Main extends Frame {
 	{
 		setup( parameters , false );
 
-		renderPanel = new RenderPanel();
-		renderPanel.setSimulator( simulator );
+		if ( USE_OPENGL ) {
+			try {
+				setupOpenGLPanel(simulator);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				throw new RuntimeException("Something went wrong during OpenGL surface creation");
+			}			
+		} else {
+			setupAWTPanel(simulator);
+		}
 
-		MyKeyListener keyListener = new MyKeyListener();
-		renderPanel.addKeyListener( keyListener );
-
-		final MyMouseAdapter mouseAdapter = new MyMouseAdapter();
-		renderPanel.addMouseListener( mouseAdapter );
-		renderPanel.addMouseMotionListener( mouseAdapter );
-
-		renderPanel.setPreferredSize( new Dimension(800,400 ) );
-		
 		final JFrame controlFrame = new ControlPanel() {
 			protected void applyChanges(SimulationParameters newParameters) {
 				setup( newParameters , true );
 			}
 		}.createFrame();
-		
+
 		final WindowAdapter closeListener = new WindowAdapter() 
 		{
 			public void windowClosing(java.awt.event.WindowEvent e) 
@@ -79,18 +86,18 @@ public class Main extends Frame {
 				}
 			}
 		};
-		
+
 		controlFrame.addWindowListener( closeListener );
 		addWindowListener( closeListener );
-		
-        renderPanel.addTo( this );
-        pack();
-        
+
+		renderPanel.addTo( this );
+		pack();
+
 		setVisible( true );
-		
+
 		controlFrame.setLocation( new Point( getLocation().x + getSize().width , getLocation().y ) );
 		controlFrame.setVisible( true );
-		
+
 		// sleep some time to avoid a NPE
 		// when the Simulation thread triggers a UI refresh
 		// while the rendering panel's buffer strategy has not yet been
@@ -99,11 +106,84 @@ public class Main extends Frame {
 			Thread.sleep(250);
 		} catch (InterruptedException e1) {
 		}
-		
+
 		synchronized(SIMULATOR_LOCK) 
 		{
 			this.simulator.start();
 		}
+	}
+
+	private void setupAWTPanel(Simulator simulator) 
+	{
+		renderPanel = new RenderPanel();
+		renderPanel.setSimulator( simulator );
+
+		MyKeyListener keyListener = new MyKeyListener();
+		renderPanel.addKeyListener( keyListener );
+
+		final MyMouseAdapter mouseAdapter = new MyMouseAdapter();
+		renderPanel.addMouseListener( mouseAdapter );
+		renderPanel.addMouseMotionListener( mouseAdapter );
+
+		renderPanel.setPreferredSize( new Dimension(800,400 ) );		
+	}
+
+	private void setupOpenGLPanel(final Simulator simulator) throws InterruptedException {
+
+		final CountDownLatch waitForStart = new CountDownLatch(1);
+
+		final Game game = new Game() {
+
+			@Override
+			public void create() 
+			{
+				try {
+					try {
+						renderPanel = new OpenGLRenderPanel(800,400);
+					} catch (IOException e) {
+						e.printStackTrace();
+						throw new RuntimeException(e);
+					}
+					renderPanel.setSimulator( simulator );
+
+					MyKeyListener keyListener = new MyKeyListener();
+					renderPanel.addKeyListener( keyListener );
+
+					final MyMouseAdapter mouseAdapter = new MyMouseAdapter();
+					renderPanel.addMouseListener( mouseAdapter );
+					renderPanel.addMouseMotionListener( mouseAdapter );
+
+					renderPanel.setPreferredSize( new Dimension(800,400 ) );				
+
+					setScreen( (OpenGLRenderPanel) renderPanel );
+				} finally {
+					waitForStart.countDown();
+				}
+			}
+
+			@Override
+			public void render() 
+			{
+				float delta = Gdx.graphics.getDeltaTime(); // delta in seconds
+				float deltaInMillis = delta * 1000;
+				if ( deltaInMillis > 50 ) {
+					System.out.println("Slow: "+deltaInMillis+" ms");
+				}
+				getScreen().render( delta );				
+			}
+
+			public void dispose() {
+				super.dispose();
+			};
+		};
+
+		final LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
+		config.useGL20=true;
+		// config.useGL30 = true;
+		
+		new LwjglApplication( game , config);
+
+		waitForStart.await();
 	}
 
 	public void setup(SimulationParameters parameters,boolean startSimulator) 
@@ -117,13 +197,13 @@ public class Main extends Frame {
 			this.parameters = parameters;
 			this.simulator = new Simulator(parameters) {
 
-                @Override
-                protected void afterTick()
-                {
-                    renderPanel.modelChanged();
-                }
-            };
-			
+				@Override
+				protected void afterTick()
+				{
+					renderPanel.modelChanged();
+				}
+			};
+
 			if ( renderPanel != null ) {
 				renderPanel.setSimulator( simulator );
 			}
@@ -142,18 +222,18 @@ public class Main extends Frame {
 			synchronized(SIMULATOR_LOCK) 
 			{
 				final SimulationParameters params = simulator.getSimulationParameters();
-				
+
 				final double gridWidth= params.getXResolution() / params.getGridColumnCount();
 				final double gridHeight = params.getYResolution() / params.getGridRowCount();
 				final double pickDepth = Math.abs( params.getMouseDragZDepth() + 1 );
-				
+
 				final double radiusSquared = gridWidth*gridWidth + gridHeight*gridHeight + pickDepth*pickDepth;
-				
+
 				final Vector3 mousePointer = renderPanel.viewToModel( x, y );
 				return simulator.getSpringMassSystem().getNearestMass( mousePointer , radiusSquared );
 			}
 		}
-		
+
 		public void mousePressed(java.awt.event.MouseEvent e) 
 		{
 			synchronized(SIMULATOR_LOCK) 
@@ -172,7 +252,7 @@ public class Main extends Frame {
 						if ( nearest != null ) 
 						{
 							nearest.setFixed( ! nearest.isFixed() );
-		                    renderPanel.modelChanged();							
+							renderPanel.modelChanged();							
 						}
 					}
 				} 

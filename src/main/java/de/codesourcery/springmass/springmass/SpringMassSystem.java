@@ -387,7 +387,7 @@ public final class SpringMassSystem
 
     public void step() 
     {
-        final Vector3 gravity = new Vector3(0,1,0).scl(params.getGravity());
+        final Vector3 gravity = new Vector3(0,-1,0).scl(params.getGravity());
         final Vector3 zeroGravity = new Vector3(0,0,0);
         
         lock();

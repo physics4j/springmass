@@ -268,7 +268,7 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
     @Override
 	public Point modelToView(Vector3 vec,double scaleX,double scaleY) 
     {
-        return new Point( (int) Math.round( vec.x * scaleX ) , (int) Math.round( vec.y * scaleY ) );
+        return new Point( (int) Math.round( vec.x * scaleX ) , 48 - (int) Math.round( vec.y * scaleY ) );
     }		
 
     protected final class Triangle implements Comparable<Triangle> {
@@ -359,7 +359,7 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
         }        
     }
 
-    private boolean renderFrame(float currentFPS) 
+    public boolean renderFrame(float currentFPS) 
     {
         synchronized( BUFFER_LOCK ) 
         {

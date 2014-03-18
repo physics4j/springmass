@@ -49,6 +49,15 @@ public class SpringMassSystemFactory {
 		final float factorDecrement = 1.0f / parameters.getGridRowCount();
 		final float xOffset = parameters.getXResolution()*0.2f;
 		final float yOffset = scaleY;
+
+		float minX=Float.MAX_VALUE;
+		float maxX=Float.MIN_VALUE;
+		
+		float minY=Float.MAX_VALUE;
+		float maxY=Float.MIN_VALUE;
+		
+		float minZ=Float.MAX_VALUE;
+		float maxZ=Float.MIN_VALUE;
 		
 		for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
 		{
@@ -56,6 +65,13 @@ public class SpringMassSystemFactory {
 			for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
 			{
 				final Vector3 pos = new Vector3( xOffset + scaleX*x , yOffset + scaleY*factor*y,-10);
+				minX = Math.min( minX , pos.x );
+				minY = Math.min( minX , pos.y);
+				minZ = Math.min( minX , pos.z );
+				maxX = Math.max( maxX , pos.x );
+				maxY = Math.max( maxY , pos.y );
+				maxZ = Math.max( maxZ , pos.z );
+				
 				final Mass m = new Mass( Color.red  , pos , parameters.getParticleMass() );
 				if ( y == 0 ) {
 					m.setFixed( true );
@@ -64,6 +80,9 @@ public class SpringMassSystemFactory {
 				factor -= factorDecrement;
 			}
 		}
+		
+		System.out.println("Min X/Y = "+ new Vector3(minX,minY,minZ));
+		System.out.println("Max X/Y = "+ new Vector3(maxX,maxY,maxZ));
 		
 		final Random random = new Random(0xdeadbeef);
 		final SpringMassSystem system = new SpringMassSystem(parameters,masses,random);
