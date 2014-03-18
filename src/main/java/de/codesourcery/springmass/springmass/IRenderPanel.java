@@ -7,7 +7,7 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
 
 public interface IRenderPanel {
 
@@ -15,11 +15,11 @@ public interface IRenderPanel {
            
 	public void addTo(Container container);
            
-	public Vector4 viewToModel(int x, int y);
+	public Vector3 viewToModel(int x, int y);
            
-	public Point modelToView(Vector4 vec);
+	public Point modelToView(Vector3 vec);
            
-	public Point modelToView(Vector4 vec, double scaleX, double scaleY);
+	public Point modelToView(Vector3 vec, double scaleX, double scaleY);
            
 	public void modelChanged();
 	

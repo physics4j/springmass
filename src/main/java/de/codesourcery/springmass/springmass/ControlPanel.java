@@ -39,7 +39,8 @@ import javax.swing.JTextField;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
+
 import de.codesourcery.springmass.springmass.SimulationParamsBuilder.SimulationParameter;
 import de.codesourcery.springmass.springmass.SimulationParamsBuilder.SliderHint;
 
@@ -130,16 +131,16 @@ public abstract class ControlPanel extends JPanel {
 				} 
 				throw new RuntimeException("Unhandled numeric type: "+p);
 			} 
-			else if ( p.getType() == Vector4.class ) 
+			else if ( p.getType() == Vector3.class ) 
 			{
 				String s = value.replace("(","").replace(")","").replaceAll("[ \\t\\n\\r]","");
 				final String[] components = s.split(",");
 				if ( components.length >= 3 ) 
 				{
-					Vector4 result = new Vector4(0,0,0);
-					result.x = Double.parseDouble( components[0] );
-					result.y = Double.parseDouble( components[1] );
-					result.z = Double.parseDouble( components[2] );
+					Vector3 result = new Vector3(0,0,0);
+					result.x = Float.parseFloat( components[0] );
+					result.y = Float.parseFloat( components[1] );
+					result.z = Float.parseFloat( components[2] );
 					return result;
 				} 
 				throw new RuntimeException("Not a valid vector: "+value);

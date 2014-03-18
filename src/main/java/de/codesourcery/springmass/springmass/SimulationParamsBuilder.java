@@ -35,7 +35,7 @@ import java.util.Set;
 import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang.StringUtils;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
 
 public class SimulationParamsBuilder {
 
@@ -52,40 +52,40 @@ public class SimulationParamsBuilder {
 	
 	private boolean debugPerformance;
 	
-	private double springDampening;
-	private double springCoefficient;
+	private float springDampening;
+	private float springCoefficient;
 
 	private boolean renderAllSprings;
 
-	private double maxSpringLength;
+	private float maxSpringLength;
 	
 	private boolean renderSprings;
 
 	private boolean renderMasses;
 	
-	private double particleMass;
+	private float particleMass;
 
-	private double mouseDragZDepth;
+	private float mouseDragZDepth;
 
-	private double verticalRestLengthFactor; 
-	private double horizontalRestLengthFactor;
+	private float verticalRestLengthFactor; 
+	private float horizontalRestLengthFactor;
 	
 	private final WindParameters windParameters = new WindParameters();
 
 	private boolean lightSurfaces;
 	
-	private Vector4 lightPosition;
+	private Vector3 lightPosition;
 	private Color lightColor;
 
-	private double gravity;
+	private float gravity;
 
 	private int gridColumnCount;
 	private int gridRowCount;
 
-	private double maxParticleSpeed;
+	private float maxParticleSpeed;
 	private int forkJoinBatchSize;
 	
-	private double integrationTimeStep;
+	private float integrationTimeStep;
 	private int iterationCount;
 	
 	public static interface Hint {
@@ -93,10 +93,10 @@ public class SimulationParamsBuilder {
 	
 	public static final class SliderHint implements Hint
 	{
-		private final double minValue;
-		private final double maxValue;
+		private final float minValue;
+		private final float maxValue;
 		
-		protected SliderHint(double minValue, double maxValue) 
+		protected SliderHint(float minValue, float maxValue) 
 		{
 			this.minValue = minValue;
 			this.maxValue = maxValue;
@@ -107,8 +107,8 @@ public class SimulationParamsBuilder {
 			return "SliderHint [minValue=" + minValue + ", maxValue="+ maxValue + "]";
 		}
 
-		public double getMinValue() { return minValue; }
-		public double getMaxValue() { return maxValue; }
+		public float getMinValue() { return minValue; }
+		public float getMaxValue() { return maxValue; }
 	}
 	
 	/**
@@ -124,8 +124,8 @@ public class SimulationParamsBuilder {
 	@Target(ElementType.METHOD)
 	public @interface ValueRange
 	{ 
-		public double minValue();
-		public double maxValue();
+		public float minValue();
+		public float maxValue();
 	}	
 	
 	@Retention(RetentionPolicy.RUNTIME)
@@ -238,12 +238,12 @@ public class SimulationParamsBuilder {
 		gravity = 30;
 		maxParticleSpeed = 40;
 		
-		particleMass = 1.0;
+		particleMass = 1.0f;
 		springDampening=3;
-		springCoefficient=0.3;	
+		springCoefficient=0.3f;	
 		
 		maxSpringLength = -1;		
-		verticalRestLengthFactor = 0.4;
+		verticalRestLengthFactor = 0.4f;
 		horizontalRestLengthFactor = 1;		
 
 		lightSurfaces = true;
@@ -293,21 +293,21 @@ public class SimulationParamsBuilder {
 				integrationTimeStep,maxSpringLength,getIterationCount(),waitForVSync , windParameters );
 	}
 	
-	public double getMaxSpringLength() {
+	public float getMaxSpringLength() {
 		return maxSpringLength;
 	}
 	
 	@ValueRange(minValue=-1,maxValue=200)
-	public void setMaxSpringLength(double maxSpringLength) {
+	public void setMaxSpringLength(float maxSpringLength) {
 		this.maxSpringLength = maxSpringLength;
 	}
 	
-	public double getIntegrationTimeStep() {
+	public float getIntegrationTimeStep() {
 		return integrationTimeStep;
 	}
 	
 	@ValueRange(minValue=2,maxValue=200)
-	public void setIntegrationTimeStep(double integrationTimeStep) {
+	public void setIntegrationTimeStep(float integrationTimeStep) {
 		this.integrationTimeStep = integrationTimeStep;
 	}
 	
@@ -448,8 +448,8 @@ public class SimulationParamsBuilder {
 		ValueRange hint = m.getAnnotation(ValueRange.class);
 		if ( hint != null ) 
 		{
-			double minValue = hint.minValue();
-			double maxValue = hint.maxValue();
+			float minValue = hint.minValue();
+			float maxValue = hint.maxValue();
 			if ( minValue > maxValue ) {
 				throw new IllegalArgumentException("minValue > maxValue in @ValueRange annotation on "+m);
 			}
@@ -551,7 +551,7 @@ public class SimulationParamsBuilder {
 	
 	private void updateLightPosition() 
 	{
-		lightPosition = new Vector4(xResolution / 2 , yResolution / 2.5, -200);		
+		lightPosition = new Vector3(xResolution / 2f , yResolution / 2.5f, -200);		
 	}
 
 	public void setResolution(int xResolution,int yResolution) 
@@ -569,7 +569,7 @@ public class SimulationParamsBuilder {
 		return desiredFPS;
 	}
 
-    @ValueRange(minValue=0.0,maxValue=300.0)
+    @ValueRange(minValue=0.0f,maxValue=300.0f)
 	public void setDesiredFrameRate(float desiredFPS) {
 		this.desiredFPS = desiredFPS;
 	}
@@ -598,30 +598,30 @@ public class SimulationParamsBuilder {
 		this.renderMasses = renderMasses;
 	}
 
-	public double getMouseDragZDepth() {
+	public float getMouseDragZDepth() {
 		return mouseDragZDepth;
 	}
 
 	@ValueRange(minValue=-200,maxValue=0)
-	public void setMouseDragZDepth(double mouseDragZDepth) {
+	public void setMouseDragZDepth(float mouseDragZDepth) {
 		this.mouseDragZDepth = mouseDragZDepth;
 	}
 
-	public double getVerticalRestLengthFactor() {
+	public float getVerticalRestLengthFactor() {
 		return verticalRestLengthFactor;
 	}
 
-	@ValueRange(minValue=0.01,maxValue=5.0)	
-	public void setVerticalRestLengthFactor(double verticalRestLengthFactor) {
+	@ValueRange(minValue=0.01f,maxValue=5.0f)	
+	public void setVerticalRestLengthFactor(float verticalRestLengthFactor) {
 		this.verticalRestLengthFactor = verticalRestLengthFactor;
 	}
 
-	public double getHorizontalRestLengthFactor() {
+	public float getHorizontalRestLengthFactor() {
 		return horizontalRestLengthFactor;
 	}
 
-	@ValueRange(minValue=0.01,maxValue=5.0)
-	public void setHorizontalRestLengthFactor(double horizontalRestLengthFactor) {
+	@ValueRange(minValue=0.01f,maxValue=5.0f)
+	public void setHorizontalRestLengthFactor(float horizontalRestLengthFactor) {
 		this.horizontalRestLengthFactor = horizontalRestLengthFactor;
 	}
 
@@ -633,11 +633,11 @@ public class SimulationParamsBuilder {
 		this.lightSurfaces = lightSurfaces;
 	}
 
-	public Vector4 getLightPosition() {
+	public Vector3 getLightPosition() {
 		return lightPosition;
 	}
 
-	public void setLightPosition(Vector4 lightPosition) {
+	public void setLightPosition(Vector3 lightPosition) {
 		this.lightPosition = lightPosition;
 	}
 
@@ -649,12 +649,12 @@ public class SimulationParamsBuilder {
 		this.lightColor = lightColor;
 	}
 
-	public double getGravity() {
+	public float getGravity() {
 		return gravity;
 	}
 
 	@ValueRange(minValue=0,maxValue=100)
-	public void setGravity(double gravity) {
+	public void setGravity(float gravity) {
 		this.gravity = gravity;
 	}
 
@@ -676,12 +676,12 @@ public class SimulationParamsBuilder {
 		this.gridRowCount = gridRowCount;
 	}
 
-	public double getMaxParticleSpeed() {
+	public float getMaxParticleSpeed() {
 		return maxParticleSpeed;
 	}
 
     @ValueRange(minValue=0,maxValue=50)
-	public void setMaxParticleSpeed(double maxParticleSpeed) {
+	public void setMaxParticleSpeed(float maxParticleSpeed) {
 		this.maxParticleSpeed = maxParticleSpeed;
 	}
 
@@ -694,30 +694,30 @@ public class SimulationParamsBuilder {
 		this.forkJoinBatchSize = forkJoinBatchSize;
 	}
 
-	public double getSpringDampening() {
+	public float getSpringDampening() {
 		return springDampening;
 	}
 
     @ValueRange(minValue=0,maxValue=10)
-	public void setSpringDampening(double springDampening) {
+	public void setSpringDampening(float springDampening) {
 		this.springDampening = springDampening;
 	}
 
-	public double getSpringCoefficient() {
+	public float getSpringCoefficient() {
 		return springCoefficient;
 	}
 
     @ValueRange(minValue=0,maxValue=1)
-	public void setSpringCoefficient(double springCoefficient) {
+	public void setSpringCoefficient(float springCoefficient) {
 		this.springCoefficient = springCoefficient;
 	}
 
-	public double getParticleMass() {
+	public float getParticleMass() {
 		return particleMass;
 	}
 
     @ValueRange(minValue=0,maxValue=10)
-	public void setParticleMass(double particleMass) {
+	public void setParticleMass(float particleMass) {
 		this.particleMass = particleMass;
 	}
 

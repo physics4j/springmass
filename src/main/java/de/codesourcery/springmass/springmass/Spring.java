@@ -17,16 +17,16 @@ package de.codesourcery.springmass.springmass;
 
 import java.awt.Color;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
 
 public final class Spring {
 
     public final Mass m1;
     public final Mass m2;
 
-    private final double coefficient;
+    private final float coefficient;
 
-    private final double restLen;
+    private final float restLen;
 
     public final boolean doRender;
 
@@ -36,33 +36,33 @@ public final class Spring {
      *  double im2 = 1/m2.mass; 
      *  double ratio = im1 / (im1 + im2);
      */
-    private final double m1m2Ratio; // 
+    private final float m1m2Ratio; // 
     
-    public Vector4 force = new Vector4();
+    public Vector3 force = new Vector3();
 
     public Spring createCopy(Mass newM1,Mass newM2 ) {
         return new Spring(newM1, newM2, restLen, doRender, color, coefficient);
     }
     
-    public Spring(Mass m1, Mass m2,double restLength) {
+    public Spring(Mass m1, Mass m2,float restLength) {
         this(m1,m2,restLength,false);
     }
 
-    public Spring(Mass m1, Mass m2,double restLength,boolean doRender) 
+    public Spring(Mass m1, Mass m2,float restLength,boolean doRender) 
     { 
         this(m1,m2,restLength,doRender,Color.GREEN);
     }
 
-    public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color) 
+    public Spring(Mass m1, Mass m2,float restLength,boolean doRender,Color color) 
     {
-        this(m1, m2, restLength, doRender, color, 0.1);
+        this(m1, m2, restLength, doRender, color, 0.1f);
     }
 
     public double lengthSquared() {
-        return m1.currentPosition.minus(m2.currentPosition).lengthSquared();
+        return m1.currentPosition.dst2(m2.currentPosition);
     }
 
-    public Spring(Mass m1, Mass m2,double restLength,boolean doRender,Color color,double coefficient) 
+    public Spring(Mass m1, Mass m2,float restLength,boolean doRender,Color color,float coefficient) 
     {
         if ( m1 == null ) {
             throw new IllegalArgumentException("m1 must not be null");
@@ -77,21 +77,21 @@ public final class Spring {
         this.color = color;
         this.coefficient = coefficient;
 
-        final double im1 = 1/m1.mass; 
-        final double im2 = 1/m2.mass; 
+        final float im1 = 1/m1.mass; 
+        final float im2 = 1/m2.mass; 
         this.m1m2Ratio = im1 / (im1 + im2);
     }
 
-    public double distanceTo(Vector4 c) 
+    public double distanceTo(Vector3 c) 
     {
         /*
 So it can be written as simple as:
 distance = |AB X AC| / sqrt(AB * AB)
 Here X mean cross product of vectors, and * mean dot product of vectors. This applied in both 2 dimentional and three dimentioanl space.		 
          */
-        Vector4 ab = m2.currentPosition.minus( m1.currentPosition );
-        Vector4 ac = c.minus( m1.currentPosition );
-        return ab.crossProduct( ac ).length() / ab.length();
+        Vector3 ab = new Vector3(m2.currentPosition).sub( m1.currentPosition );
+        Vector3 ac = new Vector3(c).sub( m1.currentPosition );
+        return new Vector3(ab).crs( ac ).len() / ab.len();
     }
 
     @Override
@@ -124,9 +124,9 @@ Here X mean cross product of vectors, and * mean dot product of vectors. This ap
     public void calcForce() 
     {
         force.set( m1.currentPosition );
-        force.minusInPlace( m2.currentPosition );
+        force.sub( m2.currentPosition );
         
-        final double difference = (restLen - force.length()); 
-        force.multiplyInPlace( m1m2Ratio * coefficient * difference );
+        final float difference = (restLen - force.len()); 
+        force.scl( m1m2Ratio * coefficient * difference );
     }	
 }

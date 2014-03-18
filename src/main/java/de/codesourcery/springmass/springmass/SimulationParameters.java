@@ -17,7 +17,9 @@ package de.codesourcery.springmass.springmass;
 
 import java.awt.Color;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
+
+import de.codesourcery.springmass.math.VectorUtils;
 
 public final class SimulationParameters 
 {
@@ -31,37 +33,37 @@ public final class SimulationParameters
 
 	private final boolean renderSprings;
 
-	private final double particleMass;
+	private final float particleMass;
 	
 	private final boolean renderMasses;
 	
     private final int iterationCount;	
 	
-	private final double springDampening;
-	private final double springCoefficient;
-	private final double maxSpringLength;
+	private final float springDampening;
+	private final float springCoefficient;
+	private final float maxSpringLength;
 
-	private final double mouseDragZDepth;
+	private final float mouseDragZDepth;
 
-	private final double verticalRestLengthFactor;
-	private final double horizontalRestLengthFactor;
+	private final float verticalRestLengthFactor;
+	private final float horizontalRestLengthFactor;
 	
 	private final boolean debugPerformance;
 
 	private final boolean lightSurfaces;
-	private final Vector4 lightPosition;
-	private final Vector4 lightColor;
+	private final Vector3 lightPosition;
+	private final Vector3 lightColor;
 
 	private final WindParameters windParameters = new WindParameters();
-	private final double gravity;
+	private final float gravity;
 	
 	private final int gridColumnCount;
 	private final int gridRowCount;
 	
-	private final double maxParticleSpeed;
+	private final float maxParticleSpeed;
 	private final int forkJoinBatchSize;
 	
-	private final double integratonTimeStep;
+	private final float integratonTimeStep;
 
 	public SimulationParameters(int xResolution, 
 			int yResolution,
@@ -69,24 +71,24 @@ public final class SimulationParameters
 			boolean renderAllLines, 
 			boolean renderSprings,
 			boolean renderMasses, 
-			double mouseDragZDepth,
-			double verticalRestLengthFactor, 
-			double horizontalRestLengthFactor,
+			float mouseDragZDepth,
+			float verticalRestLengthFactor, 
+			float horizontalRestLengthFactor,
 			boolean lightSurfaces, 
-			Vector4 lightPosition, 
+			Vector3 lightPosition, 
 			Color lightColor,
-			double gravity, 
+			float gravity, 
 			
 			int gridColumnCount, 
 			int gridRowCount,
-			double maxParticleSpeed, 
+			float maxParticleSpeed, 
 			int forkJoinBatchSize,
-			double springCoefficient,
-			double springDampening,
-			double particleMass,
+			float springCoefficient,
+			float springDampening,
+			float particleMass,
 			boolean debugPerformance,
-			double integratonTimeStep,
-			double maxSpringLength,
+			float integratonTimeStep,
+			float maxSpringLength,
 			int iterationCount,
 			boolean waitForVSync,
 			WindParameters windParameters) 
@@ -103,7 +105,7 @@ public final class SimulationParameters
 		this.horizontalRestLengthFactor = horizontalRestLengthFactor;
 		this.lightSurfaces = lightSurfaces;
 		this.lightPosition = lightPosition;
-		this.lightColor = Vector4.valueOf( lightColor );
+		this.lightColor = VectorUtils.valueOf( lightColor );
 		this.gravity = gravity;
 		this.gridColumnCount = gridColumnCount;
 		this.gridRowCount = gridRowCount;
@@ -124,15 +126,15 @@ public final class SimulationParameters
         return waitForVSync;
     }
 	
-	public double getIntegrationTimeStep() {
+	public float getIntegrationTimeStep() {
 		return integratonTimeStep;
 	}
 	
-	public double getParticleMass() {
+	public float getParticleMass() {
 		return particleMass;
 	}
 
-	public double getGravity() {
+	public float getGravity() {
 		return gravity;
 	}
 	
@@ -160,15 +162,15 @@ public final class SimulationParameters
 		return renderMasses;
 	}
 
-	public double getMouseDragZDepth() {
+	public float getMouseDragZDepth() {
 		return mouseDragZDepth;
 	}
 
-	public double getVerticalRestLengthFactor() {
+	public float getVerticalRestLengthFactor() {
 		return verticalRestLengthFactor;
 	}
 
-	public double getHorizontalRestLengthFactor() {
+	public float getHorizontalRestLengthFactor() {
 		return horizontalRestLengthFactor;
 	}
 
@@ -176,11 +178,11 @@ public final class SimulationParameters
 		return lightSurfaces;
 	}
 
-	public Vector4 getLightPosition() {
+	public Vector3 getLightPosition() {
 		return lightPosition;
 	}
 
-	public Vector4 getLightColor() {
+	public Vector3 getLightColor() {
 		return lightColor;
 	}
 
@@ -192,7 +194,7 @@ public final class SimulationParameters
 		return gridRowCount;
 	}
 
-	public double getMaxParticleSpeed() {
+	public float getMaxParticleSpeed() {
 		return maxParticleSpeed;
 	}
 
@@ -200,11 +202,11 @@ public final class SimulationParameters
 		return forkJoinBatchSize;
 	}
 
-	public double getSpringDampening() {
+	public float getSpringDampening() {
 		return springDampening;
 	}
 
-	public double getSpringCoefficient() {
+	public float getSpringCoefficient() {
 		return springCoefficient;
 	}
 
@@ -212,7 +214,7 @@ public final class SimulationParameters
 		return debugPerformance;
 	}
 
-	public double getMaxSpringLength() {
+	public float getMaxSpringLength() {
 		return maxSpringLength;
 	}
 	

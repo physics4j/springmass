@@ -1,6 +1,6 @@
 package de.codesourcery.springmass.springmass;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
 
 /**
  * Spherical coordinates.
@@ -42,13 +42,13 @@ public class SphericalCoordinates {
 		return xzAngleInRad;
 	}
 	
-	public Vector4 toUnitVector() {
+	public Vector3 toUnitVector() {
 		
 		final float x = (float) ( Math.sin( xzAngleInRad ) * Math.cos( xyAngleInRad ) );
 		final float y = (float) ( Math.sin( xzAngleInRad ) * Math.sin( xyAngleInRad ) );
 		final float z = (float)   Math.cos( xzAngleInRad ); 
 		
-		return new Vector4(x,y,z,1);
+		return new Vector3(x,y,z);
 	}
 	
 	private float assertValidAngleInRad(float rad) {

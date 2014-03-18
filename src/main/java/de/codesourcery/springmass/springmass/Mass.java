@@ -19,14 +19,14 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
 
 public class Mass {
 	
-	public final Vector4 currentPosition=new Vector4();
-	public Vector4 previousPosition=new Vector4();
+	public final Vector3 currentPosition=new Vector3();
+	public Vector3 previousPosition=new Vector3();
 	
-	public final double mass;
+	public final float mass;
 	public final Color color;
 	
 	public final List<Spring> springs = new ArrayList<>();
@@ -41,20 +41,20 @@ public class Mass {
 		return "Mass( "+currentPosition+" )";
 	}
 	
-	public void setPosition(Vector4 p) {
+	public void setPosition(Vector3 p) {
 	    this.currentPosition.set(p);
 	    this.previousPosition.set(p);
 	}
 	
 	public double distanceTo(Mass other) {
-		return currentPosition.distanceTo( other.currentPosition );
+		return currentPosition.dst( other.currentPosition );
 	}
 	
 	public Mass createCopyWithoutSprings() 
 	{
 	    Mass result = new Mass(color,currentPosition,mass);
 	    result.flags = flags;
-	    result.previousPosition = new Vector4(previousPosition);
+	    result.previousPosition = new Vector3(previousPosition);
 	    return result;
 	}
 	
@@ -93,7 +93,7 @@ public class Mass {
 	    return (flags & bitMask) != 0;
 	}
 	
-	public Mass(Color color,Vector4 position,double mass) {
+	public Mass(Color color,Vector3 position,float mass) {
 		if (position == null) {
 			throw new IllegalArgumentException("position must not be null");
 		}
@@ -102,8 +102,8 @@ public class Mass {
 		setPosition(position);
 	}
 
-	public double squaredDistanceTo(Vector4 other) {
-		return currentPosition.squaredDistanceTo( other );
+	public double squaredDistanceTo(Vector3 other) {
+		return currentPosition.dst2( other );
 	}
 
     public void copyPositionAndFlagsFrom(Mass mass2)

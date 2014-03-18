@@ -2,19 +2,19 @@ package de.codesourcery.springmass.springmass;
 
 import java.util.Random;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
 
 public class WindSimulator {
 
 	private WindParameters params;
 	
-	private final Vector4 currentDirection=new Vector4(); 	
-	private final Vector4 desiredDirection=new Vector4();
+	private final Vector3 currentDirection=new Vector3(); 	
+	private final Vector3 desiredDirection=new Vector3();
 	
 	private float currentForce;
 	private float desiredForce;
 	
-	private final Vector4 directionIncrement=new Vector4();
+	private final Vector3 directionIncrement=new Vector3();
 	private float forceIncrement=0;
 	
 	private int stepCount;
@@ -61,8 +61,8 @@ public class WindSimulator {
 			currentForce += forceIncrement;
 			// System.out.println( stepCount+" : stepped force to "+currentForce);
 		}
-		if ( Math.abs( currentDirection.distanceSquaredTo( desiredDirection ) ) > 0.01*0.01 ) {
-			currentDirection.plusInPlace( directionIncrement );
+		if ( Math.abs( currentDirection.dst2( desiredDirection ) ) > 0.01*0.01 ) {
+			currentDirection.add( directionIncrement );
 			// System.out.println( stepCount+" : stepped  direction to "+currentDirection);
 		}
 	}
@@ -74,8 +74,8 @@ public class WindSimulator {
 			directionIncrement.set(0,0,0);
 			forceIncrement=0;
 			desiredForce=currentForce=0;
-			currentDirection.setToZero();
-			desiredDirection.setToZero();
+			currentDirection.set(0,0,0);
+			desiredDirection.set(0,0,0);
 			System.out.println("*** ["+stepCount+"] wind: DISABLED");
 			return;
 		}
@@ -100,17 +100,17 @@ public class WindSimulator {
 		desiredDirection.set( new SphericalCoordinates( newXZAngleInRad , newXYAngleInRad ).toUnitVector() );
 		
 		directionIncrement.set( desiredDirection );
-		directionIncrement.minusInPlace( currentDirection );
+		directionIncrement.sub( currentDirection );
 		
 		// TODO: Might look even nicer if we don't interpolate linearly but use spherical coordinates here as well...
-		directionIncrement.multiplyInPlace( 1.0/ params.getStepsUntilDirectionAdjusted() );
+		directionIncrement.scl( 1.0f / params.getStepsUntilDirectionAdjusted() );
 		
 		// System.out.println("*** ["+stepCount+"] wind: current_direction="+currentDirection+", new_direction="+desiredDirection+" , increment="+directionIncrement+" ( "+params.getStepsUntilDirectionAdjusted()+" steps)");
 	}
 	
-	public void getCurrentWindVector(Vector4 v) {
+	public void getCurrentWindVector(Vector3 v) {
 		v.set( currentDirection );
-		v.normalizeInPlace();
-		v.multiplyInPlace( currentForce );
+		v.nor();
+		v.scl( currentForce );
 	}	
 }

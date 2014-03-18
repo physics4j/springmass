@@ -28,7 +28,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
+
+import de.codesourcery.springmass.math.VectorUtils;
 
 public final class SpringMassSystem 
 {
@@ -338,7 +340,7 @@ public final class SpringMassSystem
         return massArray;
     }
 
-    public Mass getNearestMass(Vector4 pos,double maxDistanceSquared) {
+    public Mass getNearestMass(Vector3 pos,double maxDistanceSquared) {
 
         Mass best = null;
         double closestDistance = Double.MAX_VALUE;
@@ -385,8 +387,8 @@ public final class SpringMassSystem
 
     public void step() 
     {
-        final Vector4 gravity = new Vector4(0,1,0).multiply(params.getGravity());
-        final Vector4 zeroGravity = new Vector4(0,0,0);
+        final Vector3 gravity = new Vector3(0,1,0).scl(params.getGravity());
+        final Vector3 zeroGravity = new Vector3(0,0,0);
         
         lock();
         try 
@@ -415,24 +417,24 @@ public final class SpringMassSystem
         }
     }
     
-    private Vector4 calculateWindForce(Mass mass,Mass rightNeighbour,Mass bottomNeighbour, Vector4 normalizedWindForce,Vector4 windForce) 
+    private Vector3 calculateWindForce(Mass mass,Mass rightNeighbour,Mass bottomNeighbour, Vector3 normalizedWindForce,Vector3 windForce) 
     {
-    	final Vector4 v1 = new Vector4( rightNeighbour.currentPosition );
-    	v1.minusInPlace( mass.currentPosition );
+    	final Vector3 v1 = new Vector3( rightNeighbour.currentPosition );
+    	v1.sub( mass.currentPosition );
     	
-    	final Vector4 v2 = new Vector4( bottomNeighbour.currentPosition );
-    	v2.minusInPlace( mass.currentPosition );    	
+    	final Vector3 v2 = new Vector3( bottomNeighbour.currentPosition );
+    	v2.sub( mass.currentPosition );    	
     	
     	// calculate vector perpendicular to plane
-    	final Vector4 crossProduct = v1.crossProduct( v2 );
-    	crossProduct.normalizeInPlace();
+    	final Vector3 crossProduct = v1.crs( v2 );
+    	crossProduct.nor();
     	
     	// calculate angle between wind direction and surface normal
-        final double angle = Math.abs( normalizedWindForce.dotProduct( crossProduct ) );
+        final float angle = Math.abs( normalizedWindForce.dot( crossProduct ) );
         
         // scale wind force by angle 
-        final Vector4 sumForces = new Vector4( windForce );
-        sumForces.multiply( angle );
+        final Vector3 sumForces = new Vector3( windForce );
+        sumForces.scl( angle );
         return sumForces; 
 	}
 
@@ -487,7 +489,7 @@ public final class SpringMassSystem
         forEachParallel( springs,  creator ,  params.getForkJoinBatchSize()*5 );        
     }    
 
-    private void applyForces(final Vector4 gravity,final boolean applyWindForces) 
+    private void applyForces(final Vector3 gravity,final boolean applyWindForces) 
     {
         final ParallelTaskCreator<Mass> creator = new ParallelTaskCreator<Mass>() {
 
@@ -512,17 +514,17 @@ public final class SpringMassSystem
         forEachParallel( massArray ,  creator ,  params.getForkJoinBatchSize() , applyWindForces );
     }
 
-    private void applyForces(final Iterable<Mass> masses,final Vector4 gravity,final boolean applyWindForces) 
+    private void applyForces(final Iterable<Mass> masses,final Vector3 gravity,final boolean applyWindForces) 
     {
-        final double deltaTSquared = params.getIntegrationTimeStep();
+        final float deltaTSquared = params.getIntegrationTimeStep();
 
-        final Vector4 windForce = new Vector4();
+        final Vector3 windForce = new Vector3();
         windSimulator.getCurrentWindVector( windForce );
         
-        final Vector4 normalizedWindForce = new Vector4( windForce );
-        normalizedWindForce.normalizeInPlace();
+        final Vector3 normalizedWindForce = new Vector3( windForce );
+        normalizedWindForce.nor();
         
-        final double maxY = params.getYResolution()*0.98;
+        final float maxY = params.getYResolution()*0.98f;
         final GridIterator it = (GridIterator) masses.iterator();
         while ( it.hasNext() )
         {
@@ -531,13 +533,13 @@ public final class SpringMassSystem
                 continue;
             }
 
-            Vector4 sumForces = new Vector4();
+            Vector3 sumForces = new Vector3();
             for ( Spring s : mass.springs ) 
             {
                 if ( s.m1 == mass ) {
-                    sumForces.plusInPlace( s.force );
+                    sumForces.add( s.force );
                 } else {
-                    sumForces.minusInPlace( s.force );
+                    sumForces.sub( s.force );
                 }
             }
             
@@ -546,25 +548,25 @@ public final class SpringMassSystem
             	final Mass rightNeighbour = it.rightNeighbour();
 				final Mass bottomNeighbour = it.bottomNeighbour();
 				if ( rightNeighbour != null & bottomNeighbour != null ) {
-					sumForces.plusInPlace( calculateWindForce(mass, rightNeighbour , bottomNeighbour , normalizedWindForce, windForce) );
+					sumForces.add( calculateWindForce(mass, rightNeighbour , bottomNeighbour , normalizedWindForce, windForce) );
 				}
             }
 
             // apply gravity
-            sumForces.plusInPlace( gravity );
+            sumForces.add( gravity );
 
-            final Vector4 tmp = new Vector4(mass.currentPosition);
+            final Vector3 tmp = new Vector3(mass.currentPosition);
 
-            final Vector4 posDelta = mass.currentPosition.minus(mass.previousPosition);
+            final Vector3 posDelta = new Vector3(mass.currentPosition).sub(mass.previousPosition);
 
-            Vector4 dampening = posDelta.multiply( params.getSpringDampening() );
-            sumForces.minusInPlace( dampening );
+            Vector3 dampening = new Vector3(posDelta).scl( params.getSpringDampening() );
+            sumForces.sub( dampening );
 
-            sumForces.multiplyInPlace( 1.0 / (mass.mass*deltaTSquared) );
-            posDelta.plusInPlace( sumForces );
+            sumForces.scl( 1.0f / (mass.mass*deltaTSquared) );
+            posDelta.add( sumForces );
 
-            posDelta.clampMagnitudeInPlace( params.getMaxParticleSpeed() );
-            mass.currentPosition.plusInPlace( posDelta );
+            VectorUtils.clampMagnitudeInPlace( posDelta, params.getMaxParticleSpeed() );
+            mass.currentPosition.add( posDelta );
 
             if ( mass.currentPosition.y > maxY) {
                 mass.currentPosition.y = maxY;

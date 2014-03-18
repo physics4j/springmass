@@ -30,7 +30,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
+
+import de.codesourcery.springmass.math.VectorUtils;
 
 public final class RenderPanel extends Canvas implements IRenderPanel {
 
@@ -242,18 +244,18 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
 	 * @see de.codesourcery.springmass.springmass.IRenderPanel#viewToModel(int, int)
 	 */
     @Override
-	public Vector4 viewToModel(int x,int y) {
+	public Vector3 viewToModel(int x,int y) {
 
-        double scaleX = getWidth() / (double) parameters.getXResolution();
-        double scaleY = getHeight() / (double) parameters.getYResolution();
-        return new Vector4( x / scaleX , y / scaleY , 0 );
+        float scaleX = getWidth() / (float) parameters.getXResolution();
+        float scaleY = getHeight() / (float) parameters.getYResolution();
+        return new Vector3( x / scaleX , y / scaleY , 0 );
     }
 
     /* (non-Javadoc)
 	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelToView(de.codesourcery.springmass.math.Vector4)
 	 */
     @Override
-	public Point modelToView(Vector4 vec) 
+	public Point modelToView(Vector3 vec) 
     {
         double scaleX = getWidth() / (double) parameters.getXResolution();
         double scaleY = getHeight() / (double) parameters.getYResolution();
@@ -264,19 +266,19 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
 	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelToView(de.codesourcery.springmass.math.Vector4, double, double)
 	 */
     @Override
-	public Point modelToView(Vector4 vec,double scaleX,double scaleY) 
+	public Point modelToView(Vector3 vec,double scaleX,double scaleY) 
     {
         return new Point( (int) Math.round( vec.x * scaleX ) , (int) Math.round( vec.y * scaleY ) );
     }		
 
     protected final class Triangle implements Comparable<Triangle> {
 
-        private final Vector4 p0;
-        private final Vector4 p1;
-        private final Vector4 p2;
+        private final Vector3 p0;
+        private final Vector3 p1;
+        private final Vector3 p2;
         private final double z;
 
-        public Triangle(Vector4 p0,Vector4 p1,Vector4 p2) {
+        public Triangle(Vector3 p0,Vector3 p1,Vector3 p2) {
             this.p0 = p0;
             this.p1 = p1;
             this.p2 = p2;
@@ -285,7 +287,7 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
 
         public boolean noSideExceedsLengthSquared(double lengthSquared) 
         {
-            return p0.distanceSquaredTo( p1 ) <= lengthSquared && p0.distanceSquaredTo( p2 ) <= lengthSquared;
+            return p0.dst2( p1 ) <= lengthSquared && p0.dst2( p2 ) <= lengthSquared;
         }
 
         @Override
@@ -300,15 +302,15 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
             return 0;
         }
 
-        public Vector4 getSurfaceNormal() 
+        public Vector3 getSurfaceNormal() 
         {
-            Vector4 v1 = p1.minus( p0 );
-            Vector4 v2 = p2.minus( p0 );
-            return v2.crossProduct( v1 ).normalize();
+            Vector3 v1 = new Vector3(p1).sub( p0 );
+            Vector3 v2 = new Vector3(p2).sub( p0 );
+            return v2.crs( v1 ).nor();
         }
 
-        public Vector4 calculateLightVector(Vector4 lightPos) {
-            return lightPos.minus(p0).normalize();
+        public Vector3 calculateLightVector(Vector3 lightPos) {
+            return new Vector3(lightPos).sub(p0).nor();
         }
 
         public void getViewCoordinates(int[] pointX,int[] pointY)
@@ -326,13 +328,13 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
             pointY[2] = p.y;	
         }
 
-        public Color calculateSurfaceColor(Vector4 lightPos,Vector4 lightColor) 
+        public Color calculateSurfaceColor(Vector3 lightPos,Vector3 lightColor) 
         {
-            Vector4 normal = getSurfaceNormal();
-            Vector4 lightVector = calculateLightVector( lightPos );
+            Vector3 normal = getSurfaceNormal();
+            Vector3 lightVector = calculateLightVector( lightPos );
 
-            final double angle = Math.abs( normal.dotProduct( lightVector ) );
-            return lightColor.multiply( angle ).toColor();
+            final float angle = Math.abs( normal.dot( lightVector ) );
+            return VectorUtils.toColor( new Vector3(lightColor).scl( angle ) );
         }
     }	
     
@@ -434,10 +436,10 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
                     Mass m2 = masses[x][y+1];
                     Mass m3 = masses[x+1][y+1];
 
-                    Vector4 p0 = m0.currentPosition;
-                    Vector4 p1 = m1.currentPosition;
-                    Vector4 p2 = m2.currentPosition;
-                    Vector4 p3 = m3.currentPosition;
+                    Vector3 p0 = m0.currentPosition;
+                    Vector3 p1 = m1.currentPosition;
+                    Vector3 p2 = m2.currentPosition;
+                    Vector3 p3 = m3.currentPosition;
 
                     Triangle t1 = new Triangle(p0,p1,p2);
                     Triangle t2 = new Triangle(p1,p3,p2);							

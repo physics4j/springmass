@@ -18,16 +18,16 @@ package de.codesourcery.springmass.springmass;
 import java.awt.Color;
 import java.util.Random;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
 
 public class SpringMassSystemFactory {
 
-	private Spring createSpring(Mass m1,Mass m2,double restLength , boolean doRender,Color color,SimulationParameters parameters) 
+	private Spring createSpring(Mass m1,Mass m2,float restLength , boolean doRender,Color color,SimulationParameters parameters) 
 	{
 		return new Spring(m1, m2, restLength, doRender, color, parameters.getSpringCoefficient() );
 	}
 	
-	private Spring createSpring(Mass m1,Mass m2,double restLength , boolean doRender,SimulationParameters parameters) 
+	private Spring createSpring(Mass m1,Mass m2,float restLength , boolean doRender,SimulationParameters parameters) 
 	{
 		return createSpring(m1, m2, restLength, doRender, Color.green , parameters);
 	}	
@@ -43,19 +43,19 @@ public class SpringMassSystemFactory {
 		
 		int springCount = 0;
 
-		double scaleX = parameters.getXResolution() / (parameters.getGridColumnCount()+parameters.getGridColumnCount()*0.5);
-		double scaleY = parameters.getYResolution() / (parameters.getGridRowCount()+parameters.getGridRowCount()*0.5);
+		float scaleX = parameters.getXResolution() / (parameters.getGridColumnCount()+parameters.getGridColumnCount()*0.5f);
+		float scaleY = parameters.getYResolution() / (parameters.getGridRowCount()+parameters.getGridRowCount()*0.5f);
 		
-		final double factorDecrement = 1.0 / parameters.getGridRowCount();
-		final double xOffset = parameters.getXResolution()*0.2;
-		final double yOffset = scaleY;
+		final float factorDecrement = 1.0f / parameters.getGridRowCount();
+		final float xOffset = parameters.getXResolution()*0.2f;
+		final float yOffset = scaleY;
 		
 		for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
 		{
-			double factor = 1.0;
+			float factor = 1.0f;
 			for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
 			{
-				final Vector4 pos = new Vector4( xOffset + scaleX*x , yOffset + scaleY*factor*y,-10);
+				final Vector3 pos = new Vector3( xOffset + scaleX*x , yOffset + scaleY*factor*y,-10);
 				final Mass m = new Mass( Color.red  , pos , parameters.getParticleMass() );
 				if ( y == 0 ) {
 					m.setFixed( true );
@@ -69,7 +69,7 @@ public class SpringMassSystemFactory {
 		final SpringMassSystem system = new SpringMassSystem(parameters,masses,random);
 
 		// connect masses horizontally
-		final double horizRestLength = scaleX*parameters.getHorizontalRestLengthFactor();
+		final float horizRestLength = scaleX*parameters.getHorizontalRestLengthFactor();
 		for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
 		{
 			for ( int x = 0 ; x < (parameters.getGridColumnCount()-1) ; x++ ) 
@@ -80,7 +80,7 @@ public class SpringMassSystemFactory {
 		}
 
 		// connect masses vertically
-		final double verticalRestLength = scaleY*parameters.getVerticalRestLengthFactor();
+		final float verticalRestLength = scaleY*parameters.getVerticalRestLengthFactor();
 		for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
 		{
 			for ( int y = 0 ; y < (parameters.getGridRowCount()-1) ; y++ ) 
@@ -91,7 +91,7 @@ public class SpringMassSystemFactory {
 		}	
 
 		// cross-connect masses
-		final double crossConnectRestLength = Math.sqrt( horizRestLength*horizRestLength + verticalRestLength*verticalRestLength);
+		final float crossConnectRestLength = (float) Math.sqrt( horizRestLength*horizRestLength + verticalRestLength*verticalRestLength);
 		for ( int x = 0 ; x < (parameters.getGridColumnCount()-1) ; x++ ) 
 		{
 			for ( int y = 0 ; y < (parameters.getGridRowCount()-1) ; y++ ) 
@@ -103,7 +103,7 @@ public class SpringMassSystemFactory {
 		}	
 
 		// connect cloth outline
-		final double horizOutlineRestLength = 2 * horizRestLength;
+		final float horizOutlineRestLength = 2 * horizRestLength;
 		for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) {
 			for ( int x = 0 ; x < (parameters.getGridColumnCount()-2) ; x++ ) 
 			{
@@ -112,7 +112,7 @@ public class SpringMassSystemFactory {
 			}	
 		}
 
-		final double verticalOutlineRestLength = 2 * verticalRestLength;
+		final float verticalOutlineRestLength = 2 * verticalRestLength;
 		for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
 		{ 
 			for ( int y = 0 ; y < (parameters.getGridRowCount()-2) ; y++ ) 

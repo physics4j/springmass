@@ -25,7 +25,7 @@ import java.awt.event.WindowAdapter;
 
 import javax.swing.JFrame;
 
-import de.codesourcery.springmass.math.Vector4;
+import com.badlogic.gdx.math.Vector3;
 
 public class Main extends Frame {
 
@@ -149,7 +149,7 @@ public class Main extends Frame {
 				
 				final double radiusSquared = gridWidth*gridWidth + gridHeight*gridHeight + pickDepth*pickDepth;
 				
-				final Vector4 mousePointer = renderPanel.viewToModel( x, y );
+				final Vector3 mousePointer = renderPanel.viewToModel( x, y );
 				return simulator.getSpringMassSystem().getNearestMass( mousePointer , radiusSquared );
 			}
 		}
@@ -206,7 +206,7 @@ public class Main extends Frame {
 			{
 				synchronized(SIMULATOR_LOCK) 
 				{
-					final Vector4 newPos = renderPanel.viewToModel( e.getX() , e.getY() );
+					final Vector3 newPos = renderPanel.viewToModel( e.getX() , e.getY() );
 					newPos.z=parameters.getMouseDragZDepth();
 					selected.setPosition( newPos );
 					renderPanel.modelChanged();					
