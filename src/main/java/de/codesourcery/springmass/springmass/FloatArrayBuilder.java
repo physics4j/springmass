@@ -47,8 +47,8 @@ public final class FloatArrayBuilder {
 		put( v.x , v.y , v.z );
 	}
 	
-	public void put(Vector3 v,float z) {
-		put( v.x , v.y , v.z , z );
+	public void put(Vector3 v,float w) {
+		put( v.x , v.y , v.z , w );
 	}		
 	
 	public int end() 

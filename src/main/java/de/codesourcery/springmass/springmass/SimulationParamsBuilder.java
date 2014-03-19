@@ -229,28 +229,28 @@ public class SimulationParamsBuilder {
 	
 	public void reset() 
 	{
-		xResolution = 1000;
-		yResolution = 1000;
+		xResolution = 2000;
+		yResolution = 2000;
 
 		gridColumnCount = 66;
 		gridRowCount = 44;
 		
-		gravity = 30;
+		gravity = 15;
 		maxParticleSpeed = 40;
 		
 		particleMass = 1.0f;
-		springDampening=3;
-		springCoefficient=0.3f;	
+		springDampening = 1;
+		springCoefficient=0.731f;	
 		
 		maxSpringLength = -1;		
-		verticalRestLengthFactor = 0.4f;
+		verticalRestLengthFactor = 0.2f;
 		horizontalRestLengthFactor = 1;		
 
 		lightSurfaces = true;
 		lightColor = new Color(50, 50, 200);
-		renderAllSprings = true;
-		renderSprings = true;
-		renderMasses = true;
+		renderAllSprings = false;
+		renderSprings = false;
+		renderMasses = false;
 		
 		mouseDragZDepth = -100;
 

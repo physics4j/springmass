@@ -25,18 +25,19 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 	
 	private static final VertexAttributes LINE_VERTEX_ATTRIBUTES;	
 	
-	static {
+	static 
+	{
 		final VertexAttribute positionAttr = VertexAttribute.Position();		
 		positionAttr.alias = "a_position";
 		
 		final VertexAttribute normalAttr = VertexAttribute.Normal();
 		normalAttr.alias = "a_normal";	
 		
-		final VertexAttribute colorAttr = VertexAttribute.Color();
+		final VertexAttribute colorAttr = VertexAttribute.ColorUnpacked();
 		colorAttr.alias = "a_color";			
 
 		POLYGON_VERTEX_ATTRIBUTES = new VertexAttributes( positionAttr , normalAttr );
-		LINE_VERTEX_ATTRIBUTES = new VertexAttributes( positionAttr , colorAttr );		
+		LINE_VERTEX_ATTRIBUTES = new VertexAttributes( positionAttr , colorAttr ); // do NOT reorder the attributes here , use of FloatArrayBuilder#put() makes assumptions  !!!!		
 	}
 	
 	// fake component used when constructing AWT events
@@ -455,7 +456,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 			final SimulationParameters params;
 			final SpringMassSystem sys;
 			synchronized (SIMULATION_LOCK) 
-			{                
+			{
 				params = this.parameters;
 				sys = this.system;
 				render( sys , params  , currentFPS );
@@ -463,7 +464,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 			}
 		}
 		// TODO: Maybe needed?
-				// Toolkit.getDefaultToolkit().sync();
+		// Toolkit.getDefaultToolkit().sync();
 		return true;
 	}
 	
@@ -479,26 +480,9 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		gl20.glEnable( GL20.GL_DEPTH_TEST );
 		gl20.glDisable( GL20.GL_CULL_FACE );
 		
-		// g.drawString( "Avg. FPS: "+FPS_FORMAT.format( currentAvgFPS ) , 5, 15 );
-		// g.drawString("Left-click to drag cloth | Right-click to pin/unpin particles | Set max. spring length > 0 to enable tearing"  , 5, getHeight()-15 );
-
-		final double scaleX = getWidth() / (double) parameters.getXResolution();
-		final double scaleY = getHeight() / (double) parameters.getYResolution();
-
-		final int boxWidthUnits = 5;
-
-		final int boxWidthPixels = (int) Math.round( boxWidthUnits * scaleX );
-		final int boxHeightPixels = (int) Math.round( boxWidthUnits * scaleY );
-
-		final int halfBoxWidthPixels = (int) Math.round( boxWidthPixels / 2.0 );
-		final int halfBoxHeightPixels = (int) Math.round( boxHeightPixels / 2.0 );
-
-		//        if ( parameters.isLightSurfaces() ) 
-		//        {
 		final int rows = parameters.getGridRowCount();
 		final int columns = parameters.getGridColumnCount();
 
-		final int triangleCount = rows*columns*2;
 		final boolean checkArea = parameters.getMaxSpringLength() > 0;
 		final double maxLenSquared = parameters.getMaxSpringLength()*parameters.getMaxSpringLength();
 
@@ -591,10 +575,10 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		if ( parameters.isRenderMasses() ) 
 		{
 			builder = new MeshBuilder();
-			builder.begin( LINE_VERTEX_ATTRIBUTES , GL20.GL_LINES );
+			builder.begin( LINE_VERTEX_ATTRIBUTES , GL20.GL_TRIANGLES );
 			
-			final float dx = 1;
-			final float dy = 1;
+			final float dx = 3;
+			final float dy = 3;
 			
 			for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
 			{
@@ -642,18 +626,18 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 			}
 			
 			gl20.glDisable(GL20.GL_DEPTH_TEST);
-			gl20.glEnable(GL11.GL_POLYGON_OFFSET_LINE);
+			gl20.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
 			gl20.glPolygonOffset(1.0f, 1.0f);
 			   
 			final Mesh mesh2 = builder.end();
 			wireProgram.begin();
 			wireProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
 			
-			mesh2.render( wireProgram , GL20.GL_LINES );
+			mesh2.render( wireProgram , GL20.GL_TRIANGLES );
 			wireProgram.end();
 			mesh2.dispose();
 			
-			gl20.glDisable(GL11.GL_POLYGON_OFFSET_LINE);			
+			gl20.glDisable(GL11.GL_POLYGON_OFFSET_FILL);			
 		}
 
 		// render springs
@@ -668,6 +652,10 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 			
 			floatArrayBuilder.begin();
 			shortArrayBuilder.begin();
+			
+			// bind buffers
+			vbo.bind( wireProgram , LINE_VERTEX_ATTRIBUTES );
+			ibo.bind();			
 			
 			int index = 0;
             for ( Spring s : system.getSprings() ) 
@@ -698,17 +686,9 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 						vbo.setVertices( floatArrayBuilder.array , 0 , size );
 						ibo.setIndices( shortArrayBuilder.array , 0 , index );
 						
-						// bind buffers
-						vbo.bind( wireProgram , LINE_VERTEX_ATTRIBUTES );
-						ibo.bind();
-						
 						// render
 		    			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
 		    			gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , ibo.getBuffer() );        						
-						
-						// unbind buffers
-						vbo.unbind( wireProgram , LINE_VERTEX_ATTRIBUTES);
-						ibo.unbind();
 						
 						// reset 
 						index = 0;
@@ -726,24 +706,24 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 				vbo.setVertices( floatArrayBuilder.array , 0 , size );
 				ibo.setIndices( shortArrayBuilder.array , 0 , index );
 				
-				// bind buffers
-				vbo.bind( wireProgram , LINE_VERTEX_ATTRIBUTES );
-				ibo.bind();
-				
 				// render
     			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
-    			gl20.glDrawElements(GL20.GL_LINES , 10 , GL20.GL_UNSIGNED_SHORT , 0 );        						
-				
-				// unbind buffers
-				vbo.unbind( wireProgram , LINE_VERTEX_ATTRIBUTES);
-				ibo.unbind();            	
+    			gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , 0 );        						
             }
+            wireProgram.end();
+            
+			// unbind buffers
+			vbo.unbind( wireProgram , LINE_VERTEX_ATTRIBUTES);
+			ibo.unbind();
+			
 			gl20.glDisable(GL11.GL_POLYGON_OFFSET_LINE);            
         }
 	}
 
 	private void calculateAveragedNormal(int x,int y,Mass[][] masses,Vector3 result,SimulationParameters parameters)
 	{
+		result.set(0,0,0);
+		
 		final Vector3 position = masses[x][y].currentPosition;
 		
 		final Vector3 v1 = new Vector3();
@@ -776,6 +756,21 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		result.nor();
 	}
 	
+	private void calculateFastNormal(int x,int y,Mass[][] masses,Vector3 result,SimulationParameters parameters)
+	{
+		final Vector3 position = masses[x][y].currentPosition;
+		
+		final Vector3 v1 = new Vector3();
+		final Vector3 v2 = new Vector3();
+		
+		if ( (x+1) < parameters.getGridColumnCount() && (y+1) < parameters.getGridRowCount() ) {
+			v1.set( masses[x+1][y].currentPosition ).sub(position);
+			v2.set( masses[x][y+1].currentPosition ).sub(position);
+			result.add( v1.crs( v2 ) );
+		}
+		result.nor();
+	}	
+	
 	// ==== libgdx ====
 
 	@Override
@@ -807,6 +802,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		// TODO Auto-generated method stub
 	}
 
+	private long frameCount = 0;
 	@Override
 	public void render(float deltaT) {
 		renderFrame( 1f/deltaT );
