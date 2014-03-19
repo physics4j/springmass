@@ -524,7 +524,7 @@ public final class SpringMassSystem
         final Vector3 normalizedWindForce = new Vector3( windForce );
         normalizedWindForce.nor();
         
-        final float maxY = params.getYResolution()*0.98f;
+        final float minY = -params.getYResolution()*0.2f;
         final GridIterator it = (GridIterator) masses.iterator();
         while ( it.hasNext() )
         {
@@ -568,8 +568,8 @@ public final class SpringMassSystem
             VectorUtils.clampMagnitudeInPlace( posDelta, params.getMaxParticleSpeed() );
             mass.currentPosition.add( posDelta );
 
-            if ( mass.currentPosition.y > maxY) {
-                mass.currentPosition.y = maxY;
+            if ( mass.currentPosition.y < minY) {
+                mass.currentPosition.y = minY;
             }
             mass.previousPosition = tmp;
         }
