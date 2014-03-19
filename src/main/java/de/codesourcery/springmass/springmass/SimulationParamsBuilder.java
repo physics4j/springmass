@@ -229,14 +229,14 @@ public class SimulationParamsBuilder {
 	
 	public void reset() 
 	{
-		xResolution = 2000;
-		yResolution = 2000;
+		xResolution = 2010;
+		yResolution = 2010;
 
 		gridColumnCount = 66;
-		gridRowCount = 44;
+		gridRowCount = 66;
 		
 		gravity = 15;
-		maxParticleSpeed = 40;
+		maxParticleSpeed = 50;
 		
 		particleMass = 1.0f;
 		springDampening = 1;
@@ -252,10 +252,11 @@ public class SimulationParamsBuilder {
 		renderSprings = false;
 		renderMasses = false;
 		
+		iterationCount = 10;
+		
 		mouseDragZDepth = -100;
 
-		integrationTimeStep = 50;
-		iterationCount = 5;		
+		integrationTimeStep = 50;		
 		forkJoinBatchSize = 250;	
 		
 		debugPerformance=false;		
@@ -265,7 +266,7 @@ public class SimulationParamsBuilder {
 		final float oneDegree = (float) (2f*Math.PI)/360.0f;
 		final float maxAngle = (float) (2*Math.PI - oneDegree);
 		this.windParameters.setMinAngle( new SphericalCoordinates( 0 , 0 ) );
-		this.windParameters.setMaxAngle( new SphericalCoordinates( maxAngle , maxAngle ) );
+		this.windParameters.setMaxAngle( new SphericalCoordinates( maxAngle , 0 ) );
 		
 		this.windParameters.setMinForce( 30 );
 		this.windParameters.setMaxForce( 60 );
@@ -680,7 +681,7 @@ public class SimulationParamsBuilder {
 		return maxParticleSpeed;
 	}
 
-    @ValueRange(minValue=0,maxValue=50)
+    @ValueRange(minValue=0,maxValue=80)
 	public void setMaxParticleSpeed(float maxParticleSpeed) {
 		this.maxParticleSpeed = maxParticleSpeed;
 	}

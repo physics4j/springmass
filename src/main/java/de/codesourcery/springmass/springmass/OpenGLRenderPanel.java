@@ -23,6 +23,8 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 	
 	private static final VertexAttributes POLYGON_VERTEX_ATTRIBUTES;
 	
+	private static final boolean AVERAGE_NORMALS = true;
+	
 	private static final VertexAttributes LINE_VERTEX_ATTRIBUTES;	
 	
 	static 
@@ -222,9 +224,9 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		{
 			this.camera = new PerspectiveCamera();
 			this.camera.position.set( 500 , -300 , 1000 );
-			this.camera.far = 10000;
+			this.camera.far = 100000;
 			this.camera.near = 1;
-			this.camera.fieldOfView = 90;
+			this.camera.fieldOfView = 60;
 			this.camera.direction.set( 0, 0, -1 );
 			this.camera.up.set( 0, 1, 0 );	
 			viewportChanged( width , height);
@@ -729,47 +731,44 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		final Vector3 v1 = new Vector3();
 		final Vector3 v2 = new Vector3();
 		
+		int count = 0;
+		
 		if ( (x+1) < parameters.getGridColumnCount() && (y+1) < parameters.getGridRowCount() ) {
 			v1.set( masses[x+1][y].currentPosition ).sub(position);
 			v2.set( masses[x][y+1].currentPosition ).sub(position);
 			result.add( v1.crs( v2 ) );
+			count++;
+		}
+		
+		if ( ! AVERAGE_NORMALS ) {
+			result.nor();
+			return;
 		}
 
 		if ( (x+1) < parameters.getGridColumnCount() && (y-1) >= 0 ) {
 			v1.set( masses[x][y-1].currentPosition ).sub(position);			
 			v2.set( masses[x+1][y].currentPosition ).sub(position);
 			result.add( v1.crs( v2 ) );
+			count++;
 		}	
 		
 		if ( (x-1) >= 0 && (y-1) >= 0 ) {
 			v1.set( masses[x-1][y].currentPosition ).sub(position);
 			v2.set( masses[x][y-1].currentPosition ).sub(position);
 			result.add( v1.crs( v2 )  );
+			count++;
 		}	
 		
 		if ( (x-1) >= 0 && (y+1) < parameters.getGridRowCount() ) {
 			v1.set( masses[x][y+1].currentPosition ).sub(position);			
 			v2.set( masses[x-1][y].currentPosition ).sub(position);
 			result.add( v1.crs( v2 ) );
+			count++;
 		}		
 
+		result.scl( 1.0f / (float) count );
 		result.nor();
 	}
-	
-	private void calculateFastNormal(int x,int y,Mass[][] masses,Vector3 result,SimulationParameters parameters)
-	{
-		final Vector3 position = masses[x][y].currentPosition;
-		
-		final Vector3 v1 = new Vector3();
-		final Vector3 v2 = new Vector3();
-		
-		if ( (x+1) < parameters.getGridColumnCount() && (y+1) < parameters.getGridRowCount() ) {
-			v1.set( masses[x+1][y].currentPosition ).sub(position);
-			v2.set( masses[x][y+1].currentPosition ).sub(position);
-			result.add( v1.crs( v2 ) );
-		}
-		result.nor();
-	}	
 	
 	// ==== libgdx ====
 
