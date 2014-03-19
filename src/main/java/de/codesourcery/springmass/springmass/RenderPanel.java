@@ -50,6 +50,32 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
 
     private final RenderThread renderThread = new RenderThread();
 
+    private final ICameraController cameraController = new AbstractCameraController() {
+
+    	private final Vector3 position = new Vector3();
+    	private final Vector3 direction = new Vector3();
+		@Override
+		public Vector3 getPosition() {
+			return position;
+		}
+
+		@Override
+		public void setPosition(Vector3 position) {
+			this.position.set(position);
+		}
+
+		@Override
+		public Vector3 getViewDirection() {
+			return direction;
+		}
+
+		@Override
+		public void setViewDirection(Vector3 dir) {
+			this.direction.set(dir);
+			this.direction.nor();
+		}
+	};
+    
     protected final class RenderThread extends Thread 
     {
         private volatile float desiredFps;
@@ -513,5 +539,11 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
                 }
             }
         }
-    }	
+    }
+
+	@Override
+	public ICameraController getCameraController() 
+	{
+		return cameraController;
+	}	
 }

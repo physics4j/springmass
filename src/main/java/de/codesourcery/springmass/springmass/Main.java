@@ -300,17 +300,50 @@ public class Main extends Frame {
 		@Override
 		public void keyTyped(java.awt.event.KeyEvent e) 
 		{
-			if ( e.getKeyChar() == 's' ) 
+			float xInc=100;
+			float yInc=100;
+			float zInc=100;
+			boolean cameraChanged = false;
+			switch ( e.getKeyChar() ) 
 			{
-				synchronized(SIMULATOR_LOCK) 
-				{
-					if ( simulator.isRunning() ) 
+				case ' ':
+					synchronized(SIMULATOR_LOCK) 
 					{
-						simulator.stop();
-					} else {
-						simulator.start();
+						if ( simulator.isRunning() ) 
+						{
+							simulator.stop();
+						} else {
+							simulator.start();
+						}
 					}
-				}
+					break;
+//				case 'a':
+//					renderPanel.getCameraController().translate( -xInc , 0 , 0 );
+//					cameraChanged=true;
+//					break;
+//				case 'd':
+//					renderPanel.getCameraController().translate( xInc , 0 , 0 );
+//					cameraChanged=true;
+//					break;
+//				case 'w':
+//					renderPanel.getCameraController().translate( 0 , 0 , -zInc );
+//					cameraChanged=true;
+//					break;
+//				case 's':
+//					renderPanel.getCameraController().translate( 0, 0 , zInc );
+//					cameraChanged=true;
+//					break;			
+//				case 'q':
+//					renderPanel.getCameraController().translate( 0 , -yInc , 0 );
+//					cameraChanged=true;
+//					break;
+//				case 'e':
+//					renderPanel.getCameraController().translate( 0, yInc , 0 );
+//					cameraChanged=true;
+//					break;						
+			}
+			if ( cameraChanged ) {
+				renderPanel.getCameraController().cameraChanged();
 			}
 		}
 	}	

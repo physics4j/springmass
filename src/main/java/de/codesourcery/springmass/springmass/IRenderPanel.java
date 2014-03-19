@@ -9,8 +9,10 @@ import java.awt.event.MouseMotionListener;
 
 import com.badlogic.gdx.math.Vector3;
 
-public interface IRenderPanel {
-
+public interface IRenderPanel 
+{
+	public ICameraController getCameraController();
+	
 	public void setSimulator(Simulator simulator);
            
 	public void addTo(Container container);

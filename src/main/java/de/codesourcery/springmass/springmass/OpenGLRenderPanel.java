@@ -1,35 +1,27 @@
 package de.codesourcery.springmass.springmass;
 
-import java.awt.Color;
-import java.awt.Container;
-import java.awt.Dimension;
-import java.awt.Point;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Mesh;
-import com.badlogic.gdx.graphics.PerspectiveCamera;
-import com.badlogic.gdx.graphics.VertexAttribute;
-import com.badlogic.gdx.graphics.VertexAttributes;
+import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.graphics.g3d.utils.MeshBuilder;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder.VertexInfo;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 
-import de.codesourcery.springmass.math.VectorUtils;
-
 public class OpenGLRenderPanel implements IRenderPanel , Screen {
 
 	private final Object SIMULATION_LOCK = new Object();
+	
+	// fake component used when constructing AWT events
+	private static final Label DUMMY_COMPONENT = new Label("test");
 
 	// @GuardedBy( SIMULATION_LOCK )
 	private SpringMassSystem system;
@@ -42,19 +34,210 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 
 	private final Object BUFFER_LOCK = new Object();
 
-	private final PerspectiveCamera camera;
 	
 	private ShaderProgram shaderProgram;
+	
+	private final List<MouseMotionListener> mouseMotionListener = new ArrayList<>();
+	private final List<MouseListener> mouseListener = new ArrayList<>();
+	private final List<KeyListener> keyListener = new ArrayList<>();
+	
+    private final MyCameraController cameraController;
 
+	private final MyInputController inputProcessor;
+			
+	protected class MyInputController extends FPSCameraController 
+	{
+		public MyInputController(Camera camera) 
+		{
+			super(camera, camera.direction );
+		}
+
+		@Override
+		public boolean touchUp(int screenX, int screenY, int pointer, int button) 
+		{
+			boolean result = super.touchUp(screenX, screenY, pointer, button);
+			if ( ! mouseListener.isEmpty() ) 
+			{
+				for ( MouseListener l : mouseListener ) {
+					l.mouseReleased( toMouseEvent(screenX,screenY) );
+				}
+				result = true;
+			}
+			return result;
+		}
+		
+		private MouseEvent toMouseEvent(int screenX,int screenY) {
+			return new MouseEvent(DUMMY_COMPONENT,123,System.currentTimeMillis(),0,screenX,screenY,1,false,MouseEvent.BUTTON2);			
+		}
+		
+		@Override
+		public boolean touchDragged(int screenX, int screenY, int pointer) 
+		{
+			boolean result = super.touchDragged(screenX, screenY, pointer);
+			if ( ! mouseMotionListener.isEmpty() ) 
+			{
+				for (MouseMotionListener l : mouseMotionListener) {
+					l.mouseDragged( toMouseEvent(screenX,screenY) );
+				}
+				result = true;
+			}			
+			return result;
+		}
+		
+		@Override
+		public boolean touchDown(int screenX, int screenY, int pointer, int button) 
+		{
+			boolean result = super.touchDown(screenX, screenY, pointer, button);
+			if ( ! mouseListener.isEmpty() ) 
+			{
+				for ( MouseListener l : mouseListener ) {
+					l.mousePressed( toMouseEvent(screenX,screenY) );
+				}
+				result = true;
+			}			
+			return result;
+		}
+		
+		@Override
+		public boolean scrolled(int amount) {
+			return false;
+		}
+		
+		@Override
+		public boolean mouseMoved(int screenX, int screenY) {
+			boolean result = super.mouseMoved( screenX , screenY);
+			if ( ! mouseMotionListener.isEmpty() ) 
+			{
+				for (MouseMotionListener l : mouseMotionListener) {
+					l.mouseMoved( toMouseEvent(screenX,screenY) );
+				}
+				result=true;
+			}				
+			return result;
+		}
+		
+		@Override
+		public boolean keyUp(int keycode) 
+		{
+			boolean result = super.keyUp(keycode);
+			if ( ! keyListener.isEmpty() ) 
+			{
+				for ( KeyListener l : keyListener ) {
+					l.keyReleased( toKeyEvent(keycode) );
+				}
+			}			
+			return result;
+		}
+		
+		@Override
+		public boolean keyTyped(char character) 
+		{
+			boolean result = super.keyTyped(character);
+			
+			if ( ! keyListener.isEmpty() ) 
+			{
+				for ( KeyListener l : keyListener ) {
+					l.keyTyped( toKeyEvent(character) );
+				}
+				result=true;
+			}
+			return result;
+		}
+		
+		private KeyEvent toKeyEvent(char character) {
+			final int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
+			return new KeyEvent(DUMMY_COMPONENT, 123 , System.currentTimeMillis() , 0, keyCode , character );
+		}
+		
+		private KeyEvent toKeyEvent(int keyCode) {
+			return new KeyEvent(DUMMY_COMPONENT, 123 , System.currentTimeMillis() , 0, keyCode );
+		}		
+		
+		@Override
+		public boolean keyDown(int keycode) {
+			boolean result = super.keyDown(keycode);
+			if ( keyListener != null ) 
+			{
+				for ( KeyListener l : keyListener ) {
+					l.keyPressed( toKeyEvent(keycode) );
+				}
+				result=true;
+			}
+			return result;			
+		}
+
+		@Override
+		public boolean canTranslateCamera(Camera cam, Vector3 posDelta) {
+			return true;
+		}
+
+		@Override
+		public void cameraTranslated(Camera camera) {
+		}
+
+		@Override
+		public void cameraRotated(Camera camera) {
+		}
+
+		@Override
+		public void onLeftClick() {
+		}
+
+		@Override
+		public void onRightClick() {
+		}
+	};
+
+	protected class MyCameraController extends AbstractCameraController {
+		
+		public final PerspectiveCamera camera;
+		
+		public MyCameraController(int width,int height) 
+		{
+			this.camera = new PerspectiveCamera();
+			this.camera.position.set( 500 , -300 , 1000 );
+			this.camera.far = 10000;
+			this.camera.near = 1;
+			this.camera.fieldOfView = 90;
+			this.camera.direction.set( 0, 0, -1 );
+			this.camera.up.set( 0, 1, 0 );	
+			viewportChanged( width , height);
+		}
+		
+		@Override
+		public void viewportChanged(int width, int height) 
+		{
+			super.viewportChanged(width, height);
+			
+			camera.viewportHeight = height;
+			camera.viewportWidth = width;
+			camera.update(true);			
+		}
+		
+		@Override
+		public void cameraChanged() {
+			super.cameraChanged();
+			camera.update(true);
+		}
+
+		@Override
+		public Vector3 getPosition() { return camera.position; }
+
+		@Override
+		public void setPosition(Vector3 position) { camera.position.set( position); }
+
+		@Override
+		public Vector3 getViewDirection() { return camera.direction; }
+
+		@Override
+		public void setViewDirection(Vector3 dir) { camera.direction.set( dir ); camera.direction.nor(); }
+	}
+	
 	public OpenGLRenderPanel(int width,int height) throws IOException
 	{
-		this.camera = new PerspectiveCamera();
-		this.camera.position.set( 110 , 30 , -200 );
-		this.camera.far = 600;
-		this.camera.near = 1;
-		this.camera.fieldOfView = 90;
-		this.camera.direction.set( 0, 0, 1 );
-		this.camera.up.set( 0, 1, 0 );
+		cameraController = new MyCameraController(width, height);
+		
+		this.inputProcessor=new MyInputController( cameraController.camera );
 		
 		resize(width,height);
 		
@@ -63,6 +246,8 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		} catch(IOException e) {
 			throw new IOException("Failed to load 'default' shader: "+e.getMessage(),e);
 		}
+		
+		Gdx.input.setInputProcessor( inputProcessor );
 	}
 	
 	private static ShaderProgram loadShader(String name) throws IOException {
@@ -72,7 +257,16 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		
 		final String vshader = loadFromClasspath( vShaderClasspathPath );
 		final String fshader = loadFromClasspath( fShaderClasspathPath );
-		return new ShaderProgram( vshader , fshader );
+		
+		System.out.println("==== vertex shader ====\n\n"+vshader);
+		System.out.println("\n\n==== fragment shader ====\n\n"+fshader);
+		final ShaderProgram result =  new ShaderProgram( vshader , fshader );
+		if ( ! result.isCompiled() ) 
+		{
+			System.err.println("Shader compilation failed: "+result.getLog());
+			throw new RuntimeException("Shader compilation failed");
+		}
+		return result;
 	}
 	
 	private static String loadFromClasspath(String path) throws IOException {
@@ -157,13 +351,20 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		private Vector3 p0;
 		private Vector3 p1;
 		private Vector3 p2;
+		
+		private Vector3 normal0;
+		private Vector3 normal1;
+		private Vector3 normal2;		
 
 		public Triangle() {
 		}
-		public void set(Vector3 p0,Vector3 p1,Vector3 p2) {
+		public void set(Vector3 p0,Vector3 p1,Vector3 p2,Vector3 normal0,Vector3 normal1,Vector3 normal2) {
 			this.p0 = p0;
 			this.p1 = p1;
 			this.p2 = p2;
+			this.normal0=normal0;
+			this.normal1=normal1;
+			this.normal2=normal2;
 		}
 		
 		@Override
@@ -173,42 +374,21 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 
 		public void populate(VertexInfo v0,VertexInfo v1,VertexInfo v2) {
 			
-			v0.position.set( p0.x , p0.y , p0.z );
-			v1.position.set( p1.x , p1.y , p1.z );
-			v2.position.set( p2.x , p2.y , p2.z );
+			v0.setPos( p0.x , p0.y , p0.z );
+			v1.setPos( p1.x , p1.y , p1.z );
+			v2.setPos( p2.x , p2.y , p2.z );
 
-			// crappy normals , interpolate across triangles for better results
-			Vector3 normal = getSurfaceNormal();
-			v0.setNor( normal );
-			v1.setNor( normal );
-			v2.setNor( normal );
+			v0.setNor( normal0 );
+			v1.setNor( normal1 );
+			v2.setNor( normal2 );
 		}
 
 		public boolean noSideExceedsLengthSquared(double lengthSquared) 
 		{
 			return p0.dst2( p1 ) <= lengthSquared && p0.dst2( p2 ) <= lengthSquared;
 		}
-
-		public Vector3 getSurfaceNormal() 
-		{
-			Vector3 v1 = new Vector3(p1).sub( p0 );
-			Vector3 v2 = new Vector3(p2).sub( p0 );
-			return v2.crs( v1 ).nor();
-		}
-
-		public Vector3 calculateLightVector(Vector3 lightPos) {
-			return new Vector3(lightPos).sub(p0).nor();
-		}
-
-		public Color calculateSurfaceColor(Vector3 lightPos,Vector3 lightColor) 
-		{
-			Vector3 normal = getSurfaceNormal();
-			Vector3 lightVector = calculateLightVector( lightPos );
-
-			final float angle = Math.abs( normal.dot( lightVector ) );
-			return VectorUtils.toColor( new Vector3(lightColor).scl( angle ) );
-		}
-	}	
+	}
+	
 
 	/* (non-Javadoc)
 	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelChanged()
@@ -250,23 +430,18 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		return true;
 	}
 	
-	private volatile int fpsCounter;
-
 	private void render(SpringMassSystem system,SimulationParameters parameters,float currentAvgFPS) 
 	{
+		inputProcessor.update();
+		
 		// clear display
 		GL20 gl20 = Gdx.graphics.getGL20();
 		gl20.glClearColor( 1 , 1, 1, 1 );
 		gl20.glClear( GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT );
 
-		gl20.glDisable( GL20.GL_DEPTH_TEST );
-		gl20.glDisable( GL20.GL_CULL_FACE );
+		gl20.glEnable( GL20.GL_DEPTH_TEST );
+		gl20.glEnable( GL20.GL_CULL_FACE );
 		
-		fpsCounter++;
-		if ( (fpsCounter%10) == 0 ) {
-			System.out.println("fps: "+currentAvgFPS);
-		}
-
 		// g.drawString( "Avg. FPS: "+FPS_FORMAT.format( currentAvgFPS ) , 5, 15 );
 		// g.drawString("Left-click to drag cloth | Right-click to pin/unpin particles | Set max. spring length > 0 to enable tearing"  , 5, getHeight()-15 );
 
@@ -293,33 +468,37 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		shaderProgram.begin();
 		
 		/*
-in vec4 vVertex; //ok
-in vec4 vNormal; //ok
-
-smooth out vec4 color;
-
-uniform mat4 normalMatrix; // pok
-uniform mat4 mvMatrix; // ok
-uniform mat4 mvpMatrix; // ok
-
-uniform vec4 diffuseColor; // ok
-uniform vec4 vLightPosition; // ok	 
+in vec4 a_position;
+in vec4 a_normal;
+      
+uniform mat4 u_modelView;
+uniform mat4 u_modelViewProjection;
+uniform mat3 u_cameraRotation;		 
 		 */
 
-		shaderProgram.setUniformMatrix("mvpMatrix" , camera.combined );
+		final Matrix4 modelMatrix = new Matrix4().idt();
+		 modelMatrix.scale(2f,2f,1f);
 		
-//		shaderProgram.setUniformMatrix( "mvMatrix" , camera.view );
-//		shaderProgram.setUniformMatrix( "normalMatrix", camera.invProjectionView );		
+		final Matrix4 modelViewMatrix = new Matrix4( cameraController.camera.view );
+		modelViewMatrix.mul(  modelMatrix );
+		
+		final Matrix4 modelViewProjectionMatrix = new Matrix4( cameraController.camera.projection );
+		modelViewProjectionMatrix.mul(  modelViewMatrix );		
+		
+		shaderProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
 //		shaderProgram.setUniformf( "diffuseColor" , new Vector3(1,0,0) );
-//		shaderProgram.setUniformf( "vLightPosition" , new Vector3(500,0,-1000) );
+		
+		shaderProgram.setUniformMatrix( "u_modelView" , modelViewMatrix );
+//		shaderProgram.setUniformMatrix( "normalMatrix", camera. );		
+		shaderProgram.setUniformf( "vLightPos" , new Vector3(100,-300,-1000) );
 		
 		final MeshBuilder builder = new MeshBuilder();
 
 		VertexAttribute positionAttr = VertexAttribute.Position();
-		positionAttr.alias = "vVertex";
+		positionAttr.alias = "a_position";
 		
 		VertexAttribute normalAttr = VertexAttribute.Normal();
-		normalAttr.alias = "vNormal";
+		normalAttr.alias = "a_normal";
 		
 		final VertexAttribute[] attributes = new VertexAttribute[] {
 				positionAttr,
@@ -328,12 +507,24 @@ uniform vec4 vLightPosition; // ok
 
 		builder.begin(  new VertexAttributes( attributes ) );
 
-		VertexInfo v0 = new VertexInfo();
-		VertexInfo v1 = new VertexInfo();
-		VertexInfo v2 = new VertexInfo();
+		final VertexInfo v0 = new VertexInfo();
+		final VertexInfo v1 = new VertexInfo();
+		final VertexInfo v2 = new VertexInfo();
+		
+//		v0.hasNormal = true;
+//		v0.hasPosition = true;
+//		v1.hasNormal = true;
+//		v1.hasPosition = true;		
+//		v2.hasNormal = true;
+//		v2.hasPosition = true;		
 
 		final Triangle t1 = new Triangle();
-		final Triangle t2 = new Triangle();	        	
+		final Triangle t2 = new Triangle();	    
+		
+		final Vector3 normal0 = new Vector3();
+		final Vector3 normal1 = new Vector3();
+		final Vector3 normal2 = new Vector3();
+		final Vector3 normal3 = new Vector3();
 
 		final Mass[][] masses = system.getMassArray();
 		for ( int y = 0 ; y < rows-1 ; y++) 
@@ -341,17 +532,24 @@ uniform vec4 vLightPosition; // ok
 			for ( int x = 0 ; x < columns-1 ; x++) 
 			{
 				Mass m0 = masses[x][y];
+				calculateAveragedNormal( x , y , masses , normal0 , parameters );
+				
 				Mass m1 = masses[x+1][y];
+				calculateAveragedNormal( x+1 , y , masses , normal1 , parameters );
+				
 				Mass m2 = masses[x][y+1];
+				calculateAveragedNormal( x , y+1 , masses , normal2 , parameters );
+				
 				Mass m3 = masses[x+1][y+1];
+				calculateAveragedNormal( x+1 , y+1 , masses , normal3 , parameters );
 
 				Vector3 p0 = m0.currentPosition;
 				Vector3 p1 = m1.currentPosition;
 				Vector3 p2 = m2.currentPosition;
 				Vector3 p3 = m3.currentPosition;
 
-				t1.set(p0,p1,p2);
-				t2.set(p1,p3,p2);	
+				t1.set(p0,p2,p1,normal0,normal2,normal1);
+				t2.set(p1,p2,p3,normal1,normal2,normal3);	
 				
 				if ( checkArea ) 
 				{
@@ -359,46 +557,35 @@ uniform vec4 vLightPosition; // ok
 					{
 						t1.populate( v0 , v1, v2);
 						builder.triangle( v0 , v1 ,v2 );
-						// triangles.add( t1 );
 					}
 					if ( t2.noSideExceedsLengthSquared( maxLenSquared ) ) {
-						t2.populate( v0 , v1, v2);
+						t2.populate( v0 , v1, v2 );
 						builder.triangle( v0 , v1 ,v2 );                        	
-						// triangles.add( t2 );
 					}
 				} else {
-					t1.populate( v0 , v1, v2);
+					t1.populate( v0 , v1, v2 );
 					builder.triangle( v0 , v1 ,v2 );
-					// triangles.add( t1 );
 
-					t2.populate( v0 , v1, v2);
+					t2.populate( v0 , v1, v2 );
 					builder.triangle( v0 , v1 ,v2 );    
-					// triangles.add( t2 );
 				}
-				System.out.println("t1= "+t1);
-				System.out.println("t2= "+t2);
-				break;
 			}
 		}
 
+//		v0.setPos( new Vector3(-10,10,-10) );
+//		v0.setNor( new Vector3(0,0,1 ) );
+//		
+//		v1.setPos( new Vector3(0,-5,-10) );
+//		v1.setNor( new Vector3(0,0,1 ) );
+//		
+//		v2.setPos( new Vector3(10,10,-10) );
+//		v2.setNor( new Vector3(0,0,1 ) );		
+//		builder.triangle( v0 , v1, v2);
+		
 		final Mesh mesh = builder.end();
 		mesh.render( shaderProgram , GL20.GL_TRIANGLES);
 		shaderProgram.end();
 		mesh.dispose();		
-
-		// sort by Z-coordinate and draw from back to front
-		//            Collections.sort( triangles );
-		//
-		//            final int[] pointX = new int[3];
-		//            final int[] pointY = new int[3];					
-		//            for ( Triangle t : triangles ) 
-		//            {
-		//                Color color = t.calculateSurfaceColor( parameters.getLightPosition() , parameters.getLightColor() );
-		//                t.getViewCoordinates(pointX,pointY);
-		//                g.setColor(color);
-		//                g.fillPolygon(pointX,pointY,3); 
-		//            }
-		//        }
 
 		//        if ( parameters.isRenderMasses() ) 
 		//        {
@@ -447,6 +634,40 @@ uniform vec4 vLightPosition; // ok
 		gl20.glDisable( GL20.GL_DEPTH_TEST );
 	}
 
+	private void calculateAveragedNormal(int x,int y,Mass[][] masses,Vector3 result,SimulationParameters parameters)
+	{
+		final Vector3 position = masses[x][y].currentPosition;
+		
+		final Vector3 v1 = new Vector3();
+		final Vector3 v2 = new Vector3();
+		
+		if ( (x+1) < parameters.getGridColumnCount() && (y+1) < parameters.getGridRowCount() ) {
+			v1.set( masses[x+1][y].currentPosition ).sub(position);
+			v2.set( masses[x][y+1].currentPosition ).sub(position);
+			result.add( v1.crs( v2 ) );
+		}
+
+		if ( (x+1) < parameters.getGridColumnCount() && (y-1) >= 0 ) {
+			v1.set( masses[x][y-1].currentPosition ).sub(position);			
+			v2.set( masses[x+1][y].currentPosition ).sub(position);
+			result.add( v1.crs( v2 ) );
+		}	
+		
+		if ( (x-1) >= 0 && (y-1) >= 0 ) {
+			v1.set( masses[x-1][y].currentPosition ).sub(position);
+			v2.set( masses[x][y-1].currentPosition ).sub(position);
+			result.add( v1.crs( v2 )  );
+		}	
+		
+		if ( (x-1) >= 0 && (y+1) < parameters.getGridRowCount() ) {
+			v1.set( masses[x][y+1].currentPosition ).sub(position);			
+			v2.set( masses[x-1][y].currentPosition ).sub(position);
+			result.add( v1.crs( v2 ) );
+		}		
+
+		result.nor();
+	}
+	
 	// ==== libgdx ====
 
 	@Override
@@ -476,12 +697,13 @@ uniform vec4 vLightPosition; // ok
 	}
 
 	@Override
-	public void resize(int width, int height) {
+	public void resize(int width, int height) 
+	{
+		System.out.println("Resize: "+width+" x "+height);
 		this.width = width;
 		this.height = height;
-		camera.viewportHeight = height;
-		camera.viewportWidth = width;
-		camera.update(true);
+		
+		cameraController.viewportChanged(width, height);
 	}
 
 	@Override
@@ -498,24 +720,35 @@ uniform vec4 vLightPosition; // ok
 
 	@Override
 	public void addKeyListener(KeyListener listener) {
-		// TODO Auto-generated method stub
-
+		if (listener == null) {
+			throw new IllegalArgumentException("listener must not be NULL");
+		}
+		this.keyListener.add( listener );
 	}
 
 	@Override
 	public void addMouseListener(MouseListener listener) {
-		// TODO Auto-generated method stub
-
+		if (listener == null) {
+			throw new IllegalArgumentException("listener must not be NULL");
+		}
+		this.mouseListener.add( listener );
 	}
 
 	@Override
 	public void addMouseMotionListener(MouseMotionListener listener) {
-		// TODO Auto-generated method stub
-
+		if (listener == null) {
+			throw new IllegalArgumentException("listener must not be NULL");
+		}
+		this.mouseMotionListener.add( listener );
 	}
 
 	@Override
 	public void setPreferredSize(Dimension preferredSize) {
 		resize(preferredSize.width ,preferredSize.height);
+	}
+
+	@Override
+	public ICameraController getCameraController() {
+		return cameraController;
 	}
 }

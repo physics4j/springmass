@@ -273,7 +273,7 @@ public class SimulationParamsBuilder {
 		this.windParameters.setStepsUntilDirectionAdjusted( 60 );
 		this.windParameters.setStepsUntilDirectionChanged( 60 );
 		
-		this.windParameters.setEnabled(false);
+		this.windParameters.setEnabled(true);
 		
 		updateLightPosition();
 	}
