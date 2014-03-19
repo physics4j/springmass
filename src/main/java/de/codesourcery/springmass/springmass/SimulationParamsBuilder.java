@@ -248,9 +248,9 @@ public class SimulationParamsBuilder {
 
 		lightSurfaces = true;
 		lightColor = new Color(50, 50, 200);
-		renderAllSprings = false;
-		renderSprings = false;
-		renderMasses = false;
+		renderAllSprings = true;
+		renderSprings = true;
+		renderMasses = true;
 		
 		mouseDragZDepth = -100;
 

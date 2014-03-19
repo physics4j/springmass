@@ -6,8 +6,9 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.lwjgl.opengl.GL11;
+
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.graphics.g3d.utils.MeshBuilder;
@@ -20,6 +21,24 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 
 	private final Object SIMULATION_LOCK = new Object();
 	
+	private static final VertexAttributes POLYGON_VERTEX_ATTRIBUTES;
+	
+	private static final VertexAttributes LINE_VERTEX_ATTRIBUTES;	
+	
+	static {
+		final VertexAttribute positionAttr = VertexAttribute.Position();		
+		positionAttr.alias = "a_position";
+		
+		final VertexAttribute normalAttr = VertexAttribute.Normal();
+		normalAttr.alias = "a_normal";	
+		
+		final VertexAttribute colorAttr = VertexAttribute.Color();
+		colorAttr.alias = "a_color";			
+
+		POLYGON_VERTEX_ATTRIBUTES = new VertexAttributes( positionAttr , normalAttr );
+		LINE_VERTEX_ATTRIBUTES = new VertexAttributes( positionAttr , colorAttr );		
+	}
+	
 	// fake component used when constructing AWT events
 	private static final Label DUMMY_COMPONENT = new Label("test");
 
@@ -28,14 +47,20 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 
 	// @GuardedBy( SIMULATION_LOCK )
 	private SimulationParameters parameters;
+	
+	private final FloatArrayBuilder floatArrayBuilder = new FloatArrayBuilder( 10240 , 10240 );
+	private final ShortArrayBuilder shortArrayBuilder = new ShortArrayBuilder(10240,10240);
+	
+	private final DynamicVBO vbo;
+	private final DynamicIBO ibo;
 
 	private int width;
 	private int height;
 
 	private final Object BUFFER_LOCK = new Object();
 
-	
-	private ShaderProgram shaderProgram;
+	private ShaderProgram polyProgram;
+	private ShaderProgram wireProgram;
 	
 	private final List<MouseMotionListener> mouseMotionListener = new ArrayList<>();
 	private final List<MouseListener> mouseListener = new ArrayList<>();
@@ -239,13 +264,25 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		
 		this.inputProcessor=new MyInputController( cameraController.camera );
 		
+		this.vbo = new DynamicVBO(false , 65536 , 7*4 );
+		this.ibo = new DynamicIBO(false , 65536 );
+		
 		resize(width,height);
 		
 		try {
-			shaderProgram = loadShader("default");
-		} catch(IOException e) {
+			polyProgram = loadShader("default");
+		} catch(Exception e) {
 			throw new IOException("Failed to load 'default' shader: "+e.getMessage(),e);
 		}
+		
+		try {
+			wireProgram = loadShader("lines");
+		} 
+		catch(Exception e) 
+		{
+			polyProgram.dispose();
+			throw new IOException("Failed to load 'lines' shader: "+e.getMessage(),e);
+		} 		
 		
 		Gdx.input.setInputProcessor( inputProcessor );
 	}
@@ -434,13 +471,13 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 	{
 		inputProcessor.update();
 		
-		// clear display
+		// clear buffers
 		GL20 gl20 = Gdx.graphics.getGL20();
 		gl20.glClearColor( 1 , 1, 1, 1 );
 		gl20.glClear( GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT );
 
 		gl20.glEnable( GL20.GL_DEPTH_TEST );
-		gl20.glEnable( GL20.GL_CULL_FACE );
+		gl20.glDisable( GL20.GL_CULL_FACE );
 		
 		// g.drawString( "Avg. FPS: "+FPS_FORMAT.format( currentAvgFPS ) , 5, 15 );
 		// g.drawString("Left-click to drag cloth | Right-click to pin/unpin particles | Set max. spring length > 0 to enable tearing"  , 5, getHeight()-15 );
@@ -465,17 +502,8 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		final boolean checkArea = parameters.getMaxSpringLength() > 0;
 		final double maxLenSquared = parameters.getMaxSpringLength()*parameters.getMaxSpringLength();
 
-		shaderProgram.begin();
+		polyProgram.begin();
 		
-		/*
-in vec4 a_position;
-in vec4 a_normal;
-      
-uniform mat4 u_modelView;
-uniform mat4 u_modelViewProjection;
-uniform mat3 u_cameraRotation;		 
-		 */
-
 		final Matrix4 modelMatrix = new Matrix4().idt();
 		 modelMatrix.scale(2f,2f,1f);
 		
@@ -485,39 +513,22 @@ uniform mat3 u_cameraRotation;
 		final Matrix4 modelViewProjectionMatrix = new Matrix4( cameraController.camera.projection );
 		modelViewProjectionMatrix.mul(  modelViewMatrix );		
 		
-		shaderProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
+		polyProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
 //		shaderProgram.setUniformf( "diffuseColor" , new Vector3(1,0,0) );
 		
-		shaderProgram.setUniformMatrix( "u_modelView" , modelViewMatrix );
+		polyProgram.setUniformMatrix( "u_modelView" , modelViewMatrix );
 //		shaderProgram.setUniformMatrix( "normalMatrix", camera. );		
-		shaderProgram.setUniformf( "vLightPos" , new Vector3(100,-300,-1000) );
+		polyProgram.setUniformf( "vLightPos" , new Vector3(100,-300,-1000) );
 		
-		final MeshBuilder builder = new MeshBuilder();
-
-		VertexAttribute positionAttr = VertexAttribute.Position();
-		positionAttr.alias = "a_position";
+		MeshBuilder builder = new MeshBuilder();
 		
-		VertexAttribute normalAttr = VertexAttribute.Normal();
-		normalAttr.alias = "a_normal";
-		
-		final VertexAttribute[] attributes = new VertexAttribute[] {
-				positionAttr,
-				normalAttr
-		};
-
-		builder.begin(  new VertexAttributes( attributes ) );
+		builder.begin(  POLYGON_VERTEX_ATTRIBUTES , GL20.GL_TRIANGLES );
 
 		final VertexInfo v0 = new VertexInfo();
 		final VertexInfo v1 = new VertexInfo();
 		final VertexInfo v2 = new VertexInfo();
+		final VertexInfo v3 = new VertexInfo();		
 		
-//		v0.hasNormal = true;
-//		v0.hasPosition = true;
-//		v1.hasNormal = true;
-//		v1.hasPosition = true;		
-//		v2.hasNormal = true;
-//		v2.hasPosition = true;		
-
 		final Triangle t1 = new Triangle();
 		final Triangle t2 = new Triangle();	    
 		
@@ -572,66 +583,163 @@ uniform mat3 u_cameraRotation;
 			}
 		}
 
-//		v0.setPos( new Vector3(-10,10,-10) );
-//		v0.setNor( new Vector3(0,0,1 ) );
-//		
-//		v1.setPos( new Vector3(0,-5,-10) );
-//		v1.setNor( new Vector3(0,0,1 ) );
-//		
-//		v2.setPos( new Vector3(10,10,-10) );
-//		v2.setNor( new Vector3(0,0,1 ) );		
-//		builder.triangle( v0 , v1, v2);
-		
 		final Mesh mesh = builder.end();
-		mesh.render( shaderProgram , GL20.GL_TRIANGLES);
-		shaderProgram.end();
+		mesh.render( polyProgram , GL20.GL_TRIANGLES);
+		polyProgram.end();
 		mesh.dispose();		
 
-		//        if ( parameters.isRenderMasses() ) 
-		//        {
-		//        	for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
-		//        	{
-		//            	for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
-		//            	{
-		//            		final Mass m = system.massArray[x][y];
-		//                    final Point p = modelToView( m.currentPosition , scaleX , scaleY );
-		//                    if ( m.isSelected() ) 
-		//                    {
-		//                        g.setColor(Color.RED );
-		//                        g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );
-		//                        g.setColor(Color.BLUE);
-		//                    } 
-		//                    else 
-		//                    {
-		//                        if ( m.isFixed() ) {
-		//                            g.setColor( Color.BLUE );
-		//                            g.fillRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
-		//                        } else {
-		//                            g.setColor( m.color );
-		//                            g.drawRect( p.x - halfBoxWidthPixels , p.y - halfBoxHeightPixels , boxWidthPixels , boxHeightPixels );								
-		//                        }
-		//                    }            		
-		//            	}
-		//        	}
-		//        }
+		if ( parameters.isRenderMasses() ) 
+		{
+			builder = new MeshBuilder();
+			builder.begin( LINE_VERTEX_ATTRIBUTES , GL20.GL_LINES );
+			
+			final float dx = 1;
+			final float dy = 1;
+			
+			for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
+			{
+				for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
+				{
+					final Mass m = system.massArray[x][y];
+					
+					final float r;
+					final float g;
+					final float b;							
+					if ( m.isSelected() ) 
+					{
+						r = 1; // red
+						g = 0;
+						b = 0;
+					} 
+					else 
+					{
+						if ( m.isFixed() ) 
+						{
+							r=0;
+							g=0;
+							b=1; // blue 
+						} 
+						else 
+						{
+							r = m.color.getRed()/255.0f;
+							g = m.color.getGreen()/255.0f;
+							b = m.color.getBlue()/255.0f;
+						}
+					}
+						
+					v0.setCol( r ,  g,  b,  1 );
+					v1.setCol( r ,  g,  b,  1 );
+					v2.setCol( r ,  g,  b,  1 );
+					v3.setCol( r ,  g,  b,  1 );							
+						
+					v0.setPos( m.currentPosition.x-dx , m.currentPosition.y+dy , m.currentPosition.z );
+					v1.setPos( m.currentPosition.x-dx , m.currentPosition.y-dy , m.currentPosition.z );
+					v2.setPos( m.currentPosition.x+dx , m.currentPosition.y-dy , m.currentPosition.z );
+					v3.setPos( m.currentPosition.x+dx , m.currentPosition.y+dy , m.currentPosition.z );
+
+					builder.rect( v0 , v1, v2, v3);
+				}
+			}
+			
+			gl20.glDisable(GL20.GL_DEPTH_TEST);
+			gl20.glEnable(GL11.GL_POLYGON_OFFSET_LINE);
+			gl20.glPolygonOffset(1.0f, 1.0f);
+			   
+			final Mesh mesh2 = builder.end();
+			wireProgram.begin();
+			wireProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
+			
+			mesh2.render( wireProgram , GL20.GL_LINES );
+			wireProgram.end();
+			mesh2.dispose();
+			
+			gl20.glDisable(GL11.GL_POLYGON_OFFSET_LINE);			
+		}
 
 		// render springs
-		//        if ( parameters.isRenderSprings() || parameters.isRenderAllSprings() ) 
-		//        {
-		//            g.setColor(Color.GREEN);
-		//            for ( Spring s : system.getSprings() ) 
-		//            {
-		//                if ( s.doRender ) {
-		//                    final Point p1 = modelToView( s.m1.currentPosition );
-		//                    final Point p2 = modelToView( s.m2.currentPosition );
-		//                    g.setColor( s.color );
-		//                    g.drawLine( p1.x , p1.y , p2.x , p2.y );
-		//                }
-		//            }
-		//        }
+        if ( parameters.isRenderSprings() || parameters.isRenderAllSprings() ) 
+        {
+			gl20.glDisable(GL20.GL_DEPTH_TEST);
+			gl20.glEnable(GL11.GL_POLYGON_OFFSET_LINE);
+			gl20.glPolygonOffset(1.0f, 1.0f);            
+            
+			wireProgram.begin();
+			wireProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
+			
+			floatArrayBuilder.begin();
+			shortArrayBuilder.begin();
+			
+			int index = 0;
+            for ( Spring s : system.getSprings() ) 
+            {
+                if ( s.doRender ) 
+                {
+					final float r = s.color.getRed()/255.0f;
+					final float g = s.color.getGreen()/255.0f;
+					final float b = s.color.getBlue()/255.0f;
+					
+					floatArrayBuilder.put( s.m1.currentPosition , 1 ); // 4 floats
+					floatArrayBuilder.put( r , g , b ); // 3 floats
+					
+					shortArrayBuilder.put( (short) index );
+					
+					floatArrayBuilder.put( s.m2.currentPosition  , 1 );
+					floatArrayBuilder.put( r , g , b );
+					
+					shortArrayBuilder.put( (short) (index+1) );
+					
+					index += 2;
+					
+					if ( ( index + 2 ) >= 65535 ) 
+					{
+						// populate buffers
+						int size = floatArrayBuilder.end();
+						
+						vbo.setVertices( floatArrayBuilder.array , 0 , size );
+						ibo.setIndices( shortArrayBuilder.array , 0 , index );
+						
+						// bind buffers
+						vbo.bind( wireProgram , LINE_VERTEX_ATTRIBUTES );
+						ibo.bind();
+						
+						// render
+		    			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
+		    			gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , ibo.getBuffer() );        						
+						
+						// unbind buffers
+						vbo.unbind( wireProgram , LINE_VERTEX_ATTRIBUTES);
+						ibo.unbind();
+						
+						// reset 
+						index = 0;
+						floatArrayBuilder.begin();
+						shortArrayBuilder.begin();						
+					}
+                }
+            }
 
-		gl20.glDisable( GL20.GL_CULL_FACE );            
-		gl20.glDisable( GL20.GL_DEPTH_TEST );
+            if ( index != 0) 
+            {
+				// populate buffers
+				final int size = floatArrayBuilder.end();
+				
+				vbo.setVertices( floatArrayBuilder.array , 0 , size );
+				ibo.setIndices( shortArrayBuilder.array , 0 , index );
+				
+				// bind buffers
+				vbo.bind( wireProgram , LINE_VERTEX_ATTRIBUTES );
+				ibo.bind();
+				
+				// render
+    			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
+    			gl20.glDrawElements(GL20.GL_LINES , 10 , GL20.GL_UNSIGNED_SHORT , 0 );        						
+				
+				// unbind buffers
+				vbo.unbind( wireProgram , LINE_VERTEX_ATTRIBUTES);
+				ibo.unbind();            	
+            }
+			gl20.glDisable(GL11.GL_POLYGON_OFFSET_LINE);            
+        }
 	}
 
 	private void calculateAveragedNormal(int x,int y,Mass[][] masses,Vector3 result,SimulationParameters parameters)
@@ -673,22 +781,30 @@ uniform mat3 u_cameraRotation;
 	@Override
 	public void dispose() 
 	{
-		if ( shaderProgram != null ){
-			shaderProgram.dispose();
-			shaderProgram=null;
+		if ( polyProgram != null ) {
+			polyProgram.dispose();
+			polyProgram=null;
+		}
+		if ( wireProgram != null ) {
+			wireProgram.dispose();
+			wireProgram=null;
+		}		
+		if ( vbo != null ) {
+			vbo.dispose();
+		}
+		if ( ibo != null ) {
+			ibo.dispose();
 		}
 	}
 
 	@Override
 	public void hide() {
 		// TODO Auto-generated method stub
-
 	}
 
 	@Override
 	public void pause() {
 		// TODO Auto-generated method stub
-
 	}
 
 	@Override
