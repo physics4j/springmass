@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.simulation;
 
 import java.awt.Color;
 
@@ -48,8 +48,6 @@ public final class SimulationParameters
 	private final float verticalRestLengthFactor;
 	private final float horizontalRestLengthFactor;
 	
-	private final boolean debugPerformance;
-
 	private final boolean lightSurfaces;
 	private final Vector3 lightPosition;
 	private final Vector3 lightColor;
@@ -61,7 +59,9 @@ public final class SimulationParameters
 	private final int gridRowCount;
 	
 	private final float maxParticleSpeed;
-	private final int forkJoinBatchSize;
+	
+	private final boolean debugPerformance;	
+	private final float forkJoinLoadFactor;
 	
 	private final float integratonTimeStep;
 
@@ -82,7 +82,7 @@ public final class SimulationParameters
 			int gridColumnCount, 
 			int gridRowCount,
 			float maxParticleSpeed, 
-			int forkJoinBatchSize,
+			float forkJoinLoadFactor,
 			float springCoefficient,
 			float springDampening,
 			float particleMass,
@@ -110,7 +110,7 @@ public final class SimulationParameters
 		this.gridColumnCount = gridColumnCount;
 		this.gridRowCount = gridRowCount;
 		this.maxParticleSpeed = maxParticleSpeed;
-		this.forkJoinBatchSize = forkJoinBatchSize;
+		this.forkJoinLoadFactor = forkJoinLoadFactor;
 		this.springCoefficient = springCoefficient;
 		this.maxSpringLength = maxSpringLength;
 		this.springDampening = springDampening;
@@ -198,8 +198,8 @@ public final class SimulationParameters
 		return maxParticleSpeed;
 	}
 
-	public int getForkJoinBatchSize() {
-		return forkJoinBatchSize;
+	public float getForkJoinLoadFactor() {
+		return forkJoinLoadFactor;
 	}
 
 	public float getSpringDampening() {

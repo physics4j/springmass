@@ -159,7 +159,7 @@
           <finalName>springmass</finalName>
           <archive>
             <manifest>
-              <mainClass>de.codesourcery.springmass.springmass.Main</mainClass>
+              <mainClass>de.codesourcery.springmass.Main</mainClass>
             </manifest>
           </archive>
           <descriptors>

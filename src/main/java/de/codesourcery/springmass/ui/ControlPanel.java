@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.ui;
 
 import java.awt.Color;
 import java.awt.GridBagConstraints;
@@ -41,8 +41,10 @@ import javax.swing.event.ChangeListener;
 
 import com.badlogic.gdx.math.Vector3;
 
-import de.codesourcery.springmass.springmass.SimulationParamsBuilder.SimulationParameter;
-import de.codesourcery.springmass.springmass.SimulationParamsBuilder.SliderHint;
+import de.codesourcery.springmass.simulation.SimulationParameters;
+import de.codesourcery.springmass.simulation.SimulationParamsBuilder;
+import de.codesourcery.springmass.simulation.SimulationParamsBuilder.SimulationParameter;
+import de.codesourcery.springmass.simulation.SimulationParamsBuilder.SliderHint;
 
 public abstract class ControlPanel extends JPanel {
 

@@ -1,8 +1,9 @@
-package de.codesourcery.springmass.render;
+package de.codesourcery.springmass.ui.opengl;
 
 import java.awt.*;
 import java.awt.event.*;
-import java.io.*;
+import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,21 +12,27 @@ import org.lwjgl.opengl.GL11;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.*;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g3d.utils.MeshBuilder;
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder.VertexInfo;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 
-import de.codesourcery.springmass.springmass.*;
+import de.codesourcery.springmass.simulation.*;
+import de.codesourcery.springmass.ui.*;
 
-public class OpenGLRenderPanel implements IRenderPanel , Screen {
-
+public class OpenGLRenderPanel implements IRenderPanel , Screen 
+{
+	/**
+	 * Max. number of vertices that may be passed to glDrawArrays() at once. 
+	 */
+	public static final int GL_DRAW_ARRAYS_MAX_VERTEX_COUNT = 65535;
+	
+	private final DecimalFormat FPS_FORMAT = new DecimalFormat("###0");
+	
 	private final Object SIMULATION_LOCK = new Object();
-	
-	private static final VertexAttributes POLYGON_VERTEX_ATTRIBUTES;
-	
-	private static final boolean AVERAGE_NORMALS = true;
 	
 	private static final VertexAttributes LINE_VERTEX_ATTRIBUTES;	
 	
@@ -40,7 +47,6 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		final VertexAttribute colorAttr = VertexAttribute.ColorUnpacked();
 		colorAttr.alias = "a_color";			
 
-		POLYGON_VERTEX_ATTRIBUTES = new VertexAttributes( positionAttr , normalAttr );
 		LINE_VERTEX_ATTRIBUTES = new VertexAttributes( positionAttr , colorAttr ); // do NOT reorder the attributes here , use of FloatArrayBuilder#put() makes assumptions  !!!!		
 	}
 	
@@ -54,17 +60,21 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 	private SimulationParameters parameters;
 	
 	private final FloatArrayBuilder floatArrayBuilder = new FloatArrayBuilder( 10240 , 10240 );
-	private final ShortArrayBuilder shortArrayBuilder = new ShortArrayBuilder(10240,10240);
+	private final ShortArrayBuilder shortArrayBuilder = new ShortArrayBuilder( 10240 , 10240);
 	
 	private final DynamicVBO vbo;
 	private final DynamicIBO ibo;
+	
+    private SpriteBatch spriteBatch;
+    private BitmapFont font;
+	
+	private ClothRenderer clothRenderer;
 
 	private int width;
 	private int height;
 
 	private final Object BUFFER_LOCK = new Object();
 
-	private ShaderProgram polyProgram;
 	private ShaderProgram wireProgram;
 	
 	private final List<MouseMotionListener> mouseMotionListener = new ArrayList<>();
@@ -268,69 +278,29 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		cameraController = new MyCameraController(width, height);
 		
 		this.inputProcessor=new MyInputController( cameraController.camera );
+
+		clothRenderer = new ClothRenderer();
 		
 		this.vbo = new DynamicVBO(false , 65536 , 7*4 );
 		this.ibo = new DynamicIBO(false , 65536 );
 		
-		resize(width,height);
-		
 		try {
-			polyProgram = loadShader("default");
-		} catch(Exception e) {
-			throw new IOException("Failed to load 'default' shader: "+e.getMessage(),e);
-		}
-		
-		try {
-			wireProgram = loadShader("lines");
+			wireProgram = ShaderUtils.loadShader("lines");
 		} 
 		catch(Exception e) 
 		{
-			polyProgram.dispose();
+			clothRenderer.dispose();
 			throw new IOException("Failed to load 'lines' shader: "+e.getMessage(),e);
 		} 		
 		
+        spriteBatch = new SpriteBatch();
+        font = new BitmapFont();
+        
+		resize(width,height);        
+        
 		Gdx.input.setInputProcessor( inputProcessor );
 	}
 	
-	private static ShaderProgram loadShader(String name) throws IOException {
-		
-		final String vShaderClasspathPath= "/vertexshader/"+name+"_vertex.glsl";
-		final String fShaderClasspathPath= "/fragmentshader/"+name+"_fragment.glsl";
-		
-		final String vshader = loadFromClasspath( vShaderClasspathPath );
-		final String fshader = loadFromClasspath( fShaderClasspathPath );
-		
-		System.out.println("==== vertex shader ====\n\n"+vshader);
-		System.out.println("\n\n==== fragment shader ====\n\n"+fshader);
-		final ShaderProgram result =  new ShaderProgram( vshader , fshader );
-		if ( ! result.isCompiled() ) 
-		{
-			System.err.println("Shader compilation failed: "+result.getLog());
-			throw new RuntimeException("Shader compilation failed");
-		}
-		return result;
-	}
-	
-	private static String loadFromClasspath(String path) throws IOException {
-		
-		final InputStream in = OpenGLRenderPanel.class.getResourceAsStream( path );
-		if ( in == null ) {
-			throw new RuntimeException("Failed to load shader from classpath "+path);
-		}
-		final BufferedReader reader = new BufferedReader( new InputStreamReader(in) );
-		try {
-		StringBuilder builder = new StringBuilder();
-		String line;
-		
-		while ( ( line = reader.readLine()) != null ) {
-			builder.append( line+"\n" );
-		}
-		return builder.toString();
-		} finally {
-			reader.close();
-		}
-	}
-
 	/* (non-Javadoc)
 	 * @see de.codesourcery.springmass.springmass.IRenderPanel#setSimulator(de.codesourcery.springmass.springmass.Simulator)
 	 */
@@ -387,51 +357,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 	{
 		return new Point( (int) Math.round( vec.x * scaleX ) , (int) Math.round( vec.y * scaleY ) );
 	}		
-
-	protected final class Triangle {
-
-		private Vector3 p0;
-		private Vector3 p1;
-		private Vector3 p2;
-		
-		private Vector3 normal0;
-		private Vector3 normal1;
-		private Vector3 normal2;		
-
-		public Triangle() {
-		}
-		public void set(Vector3 p0,Vector3 p1,Vector3 p2,Vector3 normal0,Vector3 normal1,Vector3 normal2) {
-			this.p0 = p0;
-			this.p1 = p1;
-			this.p2 = p2;
-			this.normal0=normal0;
-			this.normal1=normal1;
-			this.normal2=normal2;
-		}
-		
-		@Override
-		public String toString() {
-			return "Triangle[ "+p0+" -> "+p1+" -> "+p2+" ]"; 
-		}
-
-		public void populate(VertexInfo v0,VertexInfo v1,VertexInfo v2) {
-			
-			v0.setPos( p0.x , p0.y , p0.z );
-			v1.setPos( p1.x , p1.y , p1.z );
-			v2.setPos( p2.x , p2.y , p2.z );
-
-			v0.setNor( normal0 );
-			v1.setNor( normal1 );
-			v2.setNor( normal2 );
-		}
-
-		public boolean noSideExceedsLengthSquared(double lengthSquared) 
-		{
-			return p0.dst2( p1 ) <= lengthSquared && p0.dst2( p2 ) <= lengthSquared;
-		}
-	}
 	
-
 	/* (non-Javadoc)
 	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelChanged()
 	 */
@@ -478,12 +404,12 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		
 		// clear buffers
 		final GL20 gl20 = Gdx.graphics.getGL20();
-		gl20.glClearColor( 1 , 1, 1, 1 );
+		gl20.glClearColor( 0 , 0, 0, 1 );
 		gl20.glClear( GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT );
 
-		// setup transformations
+		// setup transformation matrices
 		final Matrix4 modelMatrix = new Matrix4().idt();
-		 modelMatrix.scale(2f,2f,1f);
+		modelMatrix.scale(2f,2f,1f);
 		
 		final Matrix4 modelViewMatrix = new Matrix4( cameraController.camera.view );
 		modelViewMatrix.mul(  modelMatrix );
@@ -492,7 +418,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		modelViewProjectionMatrix.mul(  modelViewMatrix );	
 		
 		// render cloth
-		renderCloth(modelMatrix,modelViewMatrix,modelViewProjectionMatrix);
+		clothRenderer.renderCloth(modelMatrix, modelViewMatrix, modelViewProjectionMatrix, system , parameters );
 
 		if ( parameters.isRenderMasses() ) 
 		{
@@ -504,84 +430,17 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
         {
         	renderSprings(modelViewProjectionMatrix);
         }
-	}
-	
-	private void renderCloth(Matrix4 modelMatrix,Matrix4 modelViewMatrix,Matrix4 modelViewProjectionMatrix) 
-	{
-		final GL20 gl20 = Gdx.graphics.getGL20();
+        
+        // render FPS
+		gl20.glDisable(GL20.GL_DEPTH_TEST);
 		
-		gl20.glEnable( GL20.GL_DEPTH_TEST );
-		gl20.glDisable( GL20.GL_CULL_FACE );
+		spriteBatch.getProjectionMatrix().setToOrtho2D( 0 , 0 , width , height );
+		spriteBatch.setColor( 1 , 0 , 0, 1 );
 		
-		final int rows = parameters.getGridRowCount();
-		final int columns = parameters.getGridColumnCount();
-
-		final boolean checkArea = parameters.getMaxSpringLength() > 0;
-		final double maxLenSquared = parameters.getMaxSpringLength()*parameters.getMaxSpringLength();
-
-		polyProgram.begin();
-		
-		polyProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
-//		shaderProgram.setUniformf( "diffuseColor" , new Vector3(1,0,0) );
-		
-		polyProgram.setUniformMatrix( "u_modelView" , modelViewMatrix );
-//		shaderProgram.setUniformMatrix( "normalMatrix", camera. );		
-		polyProgram.setUniformf( "vLightPos" , new Vector3(100,-300,-1000) );
-		
-		MeshBuilder builder = new MeshBuilder();
-		
-		builder.begin(  POLYGON_VERTEX_ATTRIBUTES , GL20.GL_TRIANGLES );
-
-		final VertexInfo v0 = new VertexInfo();
-		final VertexInfo v1 = new VertexInfo();
-		final VertexInfo v2 = new VertexInfo();
-		
-		final Triangle t1 = new Triangle();
-		final Triangle t2 = new Triangle();	    
-		
-		final Mass[][] masses = system.getMassArray();
-		for ( int y = 0 ; y < rows-1 ; y++) 
-		{
-			for ( int x = 0 ; x < columns-1 ; x++) 
-			{
-				Mass m0 = masses[x][y];
-				Mass m1 = masses[x+1][y];
-				Mass m2 = masses[x][y+1];
-				Mass m3 = masses[x+1][y+1];
-
-				Vector3 p0 = m0.currentPosition;
-				Vector3 p1 = m1.currentPosition;
-				Vector3 p2 = m2.currentPosition;
-				Vector3 p3 = m3.currentPosition;
-
-				t1.set(p0,p2,p1,m0.normal,m2.normal,m1.normal);
-				t2.set(p1,p2,p3,m1.normal,m2.normal,m3.normal);	
-				
-				if ( checkArea ) 
-				{
-					if ( t1.noSideExceedsLengthSquared( maxLenSquared ) ) 
-					{
-						t1.populate( v0 , v1, v2);
-						builder.triangle( v0 , v1 ,v2 );
-					}
-					if ( t2.noSideExceedsLengthSquared( maxLenSquared ) ) {
-						t2.populate( v0 , v1, v2 );
-						builder.triangle( v0 , v1 ,v2 );                        	
-					}
-				} else {
-					t1.populate( v0 , v1, v2 );
-					builder.triangle( v0 , v1 ,v2 );
-
-					t2.populate( v0 , v1, v2 );
-					builder.triangle( v0 , v1 ,v2 );    
-				}
-			}
-		}
-
-		final Mesh mesh = builder.end();
-		mesh.render( polyProgram , GL20.GL_TRIANGLES);
-		polyProgram.end();
-		mesh.dispose();			
+        spriteBatch.begin();
+        
+        font.draw(spriteBatch, "FPS: "+FPS_FORMAT.format( currentAvgFPS ), 10, height - 20 );
+        spriteBatch.end();
 	}
 	
 	private void renderSprings(Matrix4 modelViewProjectionMatrix) 
@@ -616,33 +475,31 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 				floatArrayBuilder.put( r , g , b );
 				
 				vertexCount += 2;
-				
-//				if ( ( vertexCount + 2 ) >= 65535 ) 
-//				{
-//					// upload buffer
-//					final int size = floatArrayBuilder.end();
-//					vbo.setVertices( floatArrayBuilder.array , 0 , size );
-//					
-//					// render
-//	    			// gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , ibo.getBuffer() );        						
-//	    			gl20.glDrawArrays(GL20.GL_LINES, 0 , vertexCount );
-//	    			
-//					// reset 
-//					vertexCount = 0;
-//					floatArrayBuilder.begin();
-//				}
+				if ( (vertexCount+2) >= GL_DRAW_ARRAYS_MAX_VERTEX_COUNT ) 
+				{
+					// populate buffers
+					final int size = floatArrayBuilder.end();
+					vbo.setVertices( floatArrayBuilder.array , 0 , size );
+					
+					// gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , 0 );        			
+					gl20.glDrawArrays(GL20.GL_LINES, 0 , vertexCount );
+					
+					vertexCount  = 0;
+					floatArrayBuilder.begin();
+				}
             }
         }
 
-        if ( vertexCount != 0) 
+        if ( vertexCount > 0) 
         {
 			// populate buffers
 			final int size = floatArrayBuilder.end();
 			vbo.setVertices( floatArrayBuilder.array , 0 , size );
 			
 			// render
+			// gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , 0 );        			
 			gl20.glDrawArrays(GL20.GL_LINES, 0 , vertexCount );
-			// gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , 0 );        						
+						
         }
         wireProgram.end();
         
@@ -733,10 +590,19 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 	@Override
 	public void dispose() 
 	{
-		if ( polyProgram != null ) {
-			polyProgram.dispose();
-			polyProgram=null;
+		if ( spriteBatch != null ) {
+			spriteBatch.dispose();
+			spriteBatch = null;
 		}
+		if ( font != null ) {
+			font.dispose();
+			font=null;
+		}
+		if ( clothRenderer != null ) {
+			clothRenderer.dispose();
+			clothRenderer = null;
+		}
+		
 		if ( wireProgram != null ) {
 			wireProgram.dispose();
 			wireProgram=null;
@@ -759,7 +625,6 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		// TODO Auto-generated method stub
 	}
 
-	private long frameCount = 0;
 	@Override
 	public void render(float deltaT) {
 		renderFrame( 1f/deltaT );
@@ -772,6 +637,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		this.width = width;
 		this.height = height;
 		
+		spriteBatch.getProjectionMatrix().setToOrtho2D( 0 ,  0 ,  width ,  height );
 		cameraController.viewportChanged(width, height);
 	}
 

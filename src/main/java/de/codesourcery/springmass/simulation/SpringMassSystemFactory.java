@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.simulation;
 
 import java.awt.Color;
 import java.util.Random;

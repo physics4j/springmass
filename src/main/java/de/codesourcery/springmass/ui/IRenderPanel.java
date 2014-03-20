@@ -1,4 +1,4 @@
-package de.codesourcery.springmass.render;
+package de.codesourcery.springmass.ui;
 
 import java.awt.Container;
 import java.awt.Dimension;
@@ -9,7 +9,7 @@ import java.awt.event.MouseMotionListener;
 
 import com.badlogic.gdx.math.Vector3;
 
-import de.codesourcery.springmass.springmass.Simulator;
+import de.codesourcery.springmass.simulation.Simulator;
 
 public interface IRenderPanel 
 {

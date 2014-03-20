@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.codesourcery.springmass.render;
+package de.codesourcery.springmass.ui.awt;
 
 import java.awt.Canvas;
 import java.awt.Color;
@@ -33,7 +33,10 @@ import java.util.concurrent.CountDownLatch;
 import com.badlogic.gdx.math.Vector3;
 
 import de.codesourcery.springmass.math.VectorUtils;
-import de.codesourcery.springmass.springmass.*;
+import de.codesourcery.springmass.simulation.*;
+import de.codesourcery.springmass.ui.AbstractCameraController;
+import de.codesourcery.springmass.ui.ICameraController;
+import de.codesourcery.springmass.ui.IRenderPanel;
 
 public final class AWTRenderPanel extends Canvas implements IRenderPanel {
 
@@ -313,7 +316,7 @@ public final class AWTRenderPanel extends Canvas implements IRenderPanel {
             this.p2 = p2.currentPosition;
             this.normal = new Vector3( p0.normal );
             this.normal.add( p1.normal ).add( p2.normal );
-            this.normal.scl( 1.0f/3.0f );
+            this.normal.scl( 1.0f/3.0f ).nor();
             this.z = (this.p0.z+this.p1.z+this.p2.z)/3;
         }
 
@@ -325,13 +328,13 @@ public final class AWTRenderPanel extends Canvas implements IRenderPanel {
         @Override
         public int compareTo(Triangle o) 
         {
-            if ( this.z > o.z ) {
-                return -1;
-            }
-            if ( this.z < o.z ) {
-                return 1;
-            }
-            return 0;
+        	if ( this.z > o.z ) {
+        		return 1;
+        	}
+        	if ( this.z < o.z ) {
+        		return -1;
+        	}
+        	return 0;
         }
 
         public Vector3 getSurfaceNormal() 
@@ -339,7 +342,7 @@ public final class AWTRenderPanel extends Canvas implements IRenderPanel {
             return normal;
         }
 
-        public Vector3 calculateLightVector(Vector3 lightPos) {
+        public Vector3 calculateVectorToLight(Vector3 lightPos) {
             return new Vector3(lightPos).sub(p0).nor();
         }
 
@@ -361,9 +364,9 @@ public final class AWTRenderPanel extends Canvas implements IRenderPanel {
         public Color calculateSurfaceColor(Vector3 lightPos,Vector3 lightColor) 
         {
             Vector3 normal = getSurfaceNormal();
-            Vector3 lightVector = calculateLightVector( lightPos );
+            Vector3 lightVector = calculateVectorToLight( lightPos );
 
-            final float angle = Math.abs( normal.dot( lightVector ) );
+            final float angle = Math.abs( lightVector.dot( normal ) );
             return VectorUtils.toColor( new Vector3(lightColor).scl( angle ) );
         }
     }	

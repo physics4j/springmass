@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.simulation;
 
 import java.awt.Color;
 import java.lang.annotation.ElementType;
@@ -85,7 +85,7 @@ public class SimulationParamsBuilder {
 	private int gridRowCount;
 
 	private float maxParticleSpeed;
-	private int forkJoinBatchSize;
+	private float forkJoinLoadFactor;
 	
 	private float integrationTimeStep;
 	private int iterationCount;
@@ -259,7 +259,7 @@ public class SimulationParamsBuilder {
 		mouseDragZDepth = -100;
 
 		integrationTimeStep = 50;		
-		forkJoinBatchSize = 250;	
+		forkJoinLoadFactor = 2.0f;	
 		
 		debugPerformance=false;		
 		desiredFPS = 60;
@@ -292,7 +292,7 @@ public class SimulationParamsBuilder {
 				desiredFPS, renderAllSprings, renderSprings, renderMasses, mouseDragZDepth, 
 				verticalRestLengthFactor, horizontalRestLengthFactor, 
 				lightSurfaces, lightPosition, lightColor, gravity, 
-				gridColumnCount, gridRowCount, maxParticleSpeed, forkJoinBatchSize,springCoefficient , springDampening,particleMass,debugPerformance,
+				gridColumnCount, gridRowCount, maxParticleSpeed, forkJoinLoadFactor,springCoefficient , springDampening,particleMass,debugPerformance,
 				integrationTimeStep,maxSpringLength,getIterationCount(),waitForVSync , windParameters );
 	}
 	
@@ -554,7 +554,7 @@ public class SimulationParamsBuilder {
 	
 	private void updateLightPosition() 
 	{
-		lightPosition = new Vector3(xResolution / 2f , yResolution / 2.5f, -200);		
+		lightPosition = new Vector3(xResolution / 2f , yResolution / 2.5f, 200);		
 	}
 
 	public void setResolution(int xResolution,int yResolution) 
@@ -688,13 +688,13 @@ public class SimulationParamsBuilder {
 		this.maxParticleSpeed = maxParticleSpeed;
 	}
 
-	public int getForkJoinBatchSize() {
-		return forkJoinBatchSize;
+	public float getForkJoinLoadFactor() {
+		return forkJoinLoadFactor;
 	}
 
-    @ValueRange(minValue=0,maxValue=2000)
-	public void setForkJoinBatchSize(int forkJoinBatchSize) {
-		this.forkJoinBatchSize = forkJoinBatchSize;
+    @ValueRange(minValue=0.5f,maxValue=8f)
+	public void setForkJoinLoadFactor(float forkJoinLoadFactor) {
+		this.forkJoinLoadFactor = forkJoinLoadFactor;
 	}
 
 	public float getSpringDampening() {

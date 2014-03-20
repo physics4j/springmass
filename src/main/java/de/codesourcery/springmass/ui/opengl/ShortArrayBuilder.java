@@ -1,4 +1,4 @@
-package de.codesourcery.springmass.render;
+package de.codesourcery.springmass.ui.opengl;
 
 public final class ShortArrayBuilder {
 

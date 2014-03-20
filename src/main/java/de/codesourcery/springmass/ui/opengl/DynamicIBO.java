@@ -1,4 +1,4 @@
-package de.codesourcery.springmass.render;
+package de.codesourcery.springmass.ui.opengl;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;

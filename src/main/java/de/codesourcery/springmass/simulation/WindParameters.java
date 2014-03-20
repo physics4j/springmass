@@ -1,4 +1,4 @@
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.simulation;
 
 import de.codesourcery.springmass.math.SphericalCoordinates;
 

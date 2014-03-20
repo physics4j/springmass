@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.simulation;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -43,6 +43,8 @@ public final class SpringMassSystem
     
     private Random random;
     private final WindSimulator windSimulator;
+    
+    private final int forkJoinBatchCount;
 
     protected abstract class ParallelTaskCreator<T> 
     {
@@ -287,6 +289,10 @@ public final class SpringMassSystem
 
     public SpringMassSystem(SimulationParameters params,Mass[][] massArray,Random random) 
     {
+    	final int cpuCount = Runtime.getRuntime().availableProcessors();
+    	this.forkJoinBatchCount = (int) Math.ceil( cpuCount * params.getForkJoinLoadFactor() );
+    	System.out.println("Will process "+forkJoinBatchCount+" batches in parallel (cpu core count: "+cpuCount+", load factor: "+params.getForkJoinLoadFactor()+" )");
+    	
     	this.random = random;
         this.params = params;
         
@@ -294,11 +300,7 @@ public final class SpringMassSystem
         
         this.massArray = massArray;
         
-        int poolSize = Runtime.getRuntime().availableProcessors()-2;
-        if ( poolSize <= 0 ) {
-            poolSize+=2;
-        }
-        final BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(500);
+        final BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(this.forkJoinBatchCount * 2 );
         final ThreadFactory threadFactory = new ThreadFactory() {
 
             @Override
@@ -309,7 +311,7 @@ public final class SpringMassSystem
                 return t;
             }
         };
-        threadPool = new ThreadPoolExecutor(poolSize, poolSize, 60, TimeUnit.SECONDS, workQueue, threadFactory, new ThreadPoolExecutor.CallerRunsPolicy() );
+        threadPool = new ThreadPoolExecutor(cpuCount, cpuCount, 60, TimeUnit.SECONDS, workQueue, threadFactory, new ThreadPoolExecutor.CallerRunsPolicy() );
     }
 
     public void destroy() throws InterruptedException 
@@ -436,7 +438,7 @@ public final class SpringMassSystem
 			}
     		
     	};
-		forEachParallel(massArray, taskCreator , params.getForkJoinBatchSize() , false );
+		forEachParallel(massArray, taskCreator , false );
 	}
 
 	private void calculateNormals(Slice slice) 
@@ -563,7 +565,7 @@ public final class SpringMassSystem
             }
         };
 
-        forEachParallel( springs,  creator ,  params.getForkJoinBatchSize()*5 );        
+        forEachParallel( springs,  creator );        
     }    
 
     private void applyForces(final Vector3 gravity,final boolean applyWindForces) 
@@ -588,7 +590,7 @@ public final class SpringMassSystem
             }
         };
 
-        forEachParallel( massArray ,  creator ,  params.getForkJoinBatchSize() , applyWindForces );
+        forEachParallel( massArray ,  creator , applyWindForces );
     }
 
     private void applyForces(final Iterable<Mass> masses,final Vector3 gravity,final boolean applyWindForces) 
@@ -652,8 +654,9 @@ public final class SpringMassSystem
         }
     }    
 
-    private <T> void forEachParallel(List<T> data,ParallelTaskCreator<T> taskCreator,int chunkSize) {
+    private <T> void forEachParallel(List<T> data,ParallelTaskCreator<T> taskCreator) {
 
+    	final int chunkSize = data.size() / forkJoinBatchCount;
         final List<List<T>> chunks = splitList( data , chunkSize );
         final CountDownLatch latch = new CountDownLatch(chunks.size());
         for ( List<T> chunk : chunks )
@@ -668,9 +671,9 @@ public final class SpringMassSystem
         }
     }
     
-    private void forEachParallel(Mass[][] data,ParallelTaskCreator<Mass> taskCreator,int chunkSize,boolean iteratorNeedsNeighbours) 
+    private void forEachParallel(Mass[][] data,ParallelTaskCreator<Mass> taskCreator,boolean iteratorNeedsNeighbours) 
     {
-        final List<Slice> slices = splitArray( data , chunkSize , iteratorNeedsNeighbours );
+        final List<Slice> slices = splitArray( data , iteratorNeedsNeighbours );
         final CountDownLatch latch = new CountDownLatch( slices.size() );
         
         for ( Slice slice : slices )
@@ -685,9 +688,9 @@ public final class SpringMassSystem
         }
     }    
     
-    private <T> List<Slice> splitArray(final Mass[][] data,final int chunkSize,boolean iteratorNeedsNeighbours) 
+    private <T> List<Slice> splitArray(final Mass[][] data,boolean iteratorNeedsNeighbours) 
     {
-    	int horizSize = (int) Math.sqrt( chunkSize );
+    	int horizSize = (int) Math.ceil( Math.sqrt( forkJoinBatchCount) );
     	if ( horizSize < 1 ) {
     		horizSize = 1;
     	}

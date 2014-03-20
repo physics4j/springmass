@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass;
 
 import java.awt.Dimension;
 import java.awt.Frame;
@@ -33,9 +33,11 @@ import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 import com.badlogic.gdx.math.Vector3;
 
-import de.codesourcery.springmass.render.IRenderPanel;
-import de.codesourcery.springmass.render.OpenGLRenderPanel;
-import de.codesourcery.springmass.render.AWTRenderPanel;
+import de.codesourcery.springmass.simulation.*;
+import de.codesourcery.springmass.ui.ControlPanel;
+import de.codesourcery.springmass.ui.IRenderPanel;
+import de.codesourcery.springmass.ui.awt.AWTRenderPanel;
+import de.codesourcery.springmass.ui.opengl.OpenGLRenderPanel;
 
 public class Main extends Frame {
 
