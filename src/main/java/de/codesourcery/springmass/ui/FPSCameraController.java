@@ -42,7 +42,7 @@ public abstract class FPSCameraController extends InputAdapter
 	public final Vector3 target = new Vector3();
 	
 	private int mouseLookKey = Keys.M;
-	private boolean mayUseMouseLook = false;
+	private boolean mayUseMouseLook = true;
 	
 	public int forwardKey = Keys.W;
 	protected boolean forwardPressed;
