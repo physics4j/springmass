@@ -1,4 +1,4 @@
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.render;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -16,6 +16,8 @@ import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder.VertexInfo;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
+
+import de.codesourcery.springmass.springmass.*;
 
 public class OpenGLRenderPanel implements IRenderPanel , Screen {
 
@@ -582,11 +584,12 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 			final float dx = 3;
 			final float dy = 3;
 			
+			final Mass[][] array = system.getMassArray();
 			for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
 			{
 				for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
 				{
-					final Mass m = system.massArray[x][y];
+					final Mass m = array[x][y];
 					
 					final float r;
 					final float g;

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.render;
 
 import java.awt.Canvas;
 import java.awt.Color;
@@ -33,6 +33,7 @@ import java.util.concurrent.CountDownLatch;
 import com.badlogic.gdx.math.Vector3;
 
 import de.codesourcery.springmass.math.VectorUtils;
+import de.codesourcery.springmass.springmass.*;
 
 public final class RenderPanel extends Canvas implements IRenderPanel {
 
@@ -499,11 +500,12 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
 
         if ( parameters.isRenderMasses() ) 
         {
+        	final Mass[][] array = system.getMassArray();
         	for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
         	{
             	for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
             	{
-            		final Mass m = system.massArray[x][y];
+            		final Mass m = array[x][y];
                     final Point p = modelToView( m.currentPosition , scaleX , scaleY );
                     if ( m.isSelected() ) 
                     {

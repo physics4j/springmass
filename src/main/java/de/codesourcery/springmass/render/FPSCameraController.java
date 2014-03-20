@@ -1,4 +1,4 @@
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.render;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;

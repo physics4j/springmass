@@ -1,4 +1,4 @@
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.render;
 
 
 public abstract class AbstractCameraController implements ICameraController 

@@ -1,4 +1,4 @@
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.render;
 
 /*******************************************************************************
  * Copyright 2011 See AUTHORS file.

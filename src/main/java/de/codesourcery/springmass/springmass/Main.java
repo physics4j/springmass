@@ -33,6 +33,10 @@ import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 import com.badlogic.gdx.math.Vector3;
 
+import de.codesourcery.springmass.render.IRenderPanel;
+import de.codesourcery.springmass.render.OpenGLRenderPanel;
+import de.codesourcery.springmass.render.RenderPanel;
+
 public class Main extends Frame {
 
 	public static final boolean USE_OPENGL = true;
