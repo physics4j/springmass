@@ -38,8 +38,6 @@ public interface IRenderPanel
            
 	public Point modelToView(Vector3 vec);
            
-	public Point modelToView(Vector3 vec, double scaleX, double scaleY);
-           
 	public void modelChanged();
 	
 	/**

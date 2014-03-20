@@ -15,11 +15,21 @@
  */
 package de.codesourcery.springmass.simulation;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.collision.Ray;
 
 public final class SpringMassSystem 
 {
@@ -338,15 +348,15 @@ public final class SpringMassSystem
         return massArray;
     }
 
-    public Mass getNearestMass(Vector3 pos,double maxDistanceSquared) {
-
+    public Mass getNearestMass(Ray pickRay,double maxDistanceSquared) 
+    {
         Mass best = null;
         double closestDistance = Double.MAX_VALUE;
         for ( int y = 0 ; y < params.getGridRowCount() ; y++ ) 
         {
         	for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) {
         		final Mass m = massArray[x][y];
-                double distance = m.squaredDistanceTo( pos ); 
+                double distance = dst2RayToPoint( pickRay , m.currentPosition );
                 if ( best == null || distance < closestDistance ) 
                 {
                     best = m;
@@ -355,6 +365,13 @@ public final class SpringMassSystem
         	}
         }
         return closestDistance > maxDistanceSquared ? null : best;
+    }
+    
+    private static float dst2RayToPoint(Ray ray, Vector3 point) 
+    {
+    	final Vector3 tmp = new Vector3( ray.direction );
+    	final Vector3 delta = new Vector3( point ).sub( ray.origin );
+    	return tmp.crs( delta ).len2();
     }
 
     public List<Spring> getSprings() {

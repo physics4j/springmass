@@ -41,6 +41,9 @@ public abstract class FPSCameraController extends InputAdapter
 	/** The target to rotate around. */
 	public final Vector3 target = new Vector3();
 	
+	private int mouseLookKey = Keys.M;
+	private boolean mayUseMouseLook = false;
+	
 	public int forwardKey = Keys.W;
 	protected boolean forwardPressed;
 	
@@ -156,17 +159,23 @@ public abstract class FPSCameraController extends InputAdapter
 			return false;
 		}
 		
-		if ( isStrafeKey(keycode ) ) {
+		if ( keycode == mouseLookKey ) 
+		{
+			mayUseMouseLook = ! mayUseMouseLook;
+			System.out.println("Mouse look "+( mayUseMouseLook ? "enabled" : "disabled"));
+		} 
+		else if ( isStrafeKey(keycode ) ) 
+		{
 			strafePressed = false;
 		} 
-		else if (keycode == forwardKey) 
+		if (keycode == forwardKey) 
 		{
 			forwardPressed = false;
 		}
 		else if (keycode == backwardKey) 
 		{
 			backwardPressed = false;
-		}
+		} 
 		if ( keycode == upKey ) {
 			upPressed = false;
 		} else if ( keycode == downKey ) {
@@ -213,28 +222,38 @@ public abstract class FPSCameraController extends InputAdapter
 	@Override
 	public boolean touchDown (int screenX, int screenY, int pointer, int button) 
 	{
-		if ( ! Gdx.input.isCursorCatched() ) {
+		if ( mayUseMouseLook && ! Gdx.input.isCursorCatched() ) {
 			Gdx.input.setCursorCatched(true);
 			return false;
 		}
 		
 		if ( button == Input.Buttons.LEFT ) 
 		{
-			onLeftClick();
+			onLeftClick(screenX,screenY);
 		} 
 		else if ( button == Input.Buttons.RIGHT ) {
-			onRightClick();
+			onRightClick(screenX,screenY);
 		}
 		return false;
 	}
+	
+	@Override
+	public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+		// TODO Auto-generated method stub
+		return super.touchUp(screenX, screenY, pointer, button);
+	}
+	
+	public boolean touchDragged(int screenX, int screenY, int pointer) {
+		return super.touchDragged(screenX, screenY, pointer);
+	};
 	
 	public abstract void cameraTranslated(Camera camera);
 	
 	public abstract void cameraRotated(Camera camera);
 	
-	public abstract void onLeftClick();
+	public abstract void onLeftClick(int screenX,int screenY);
 	
-	public abstract void onRightClick();	
+	public abstract void onRightClick(int screenX,int screenY);	
 	
 	private boolean isStrafeLeftKey(int keyCode) { return keyCode == Input.Keys.A; }
 	

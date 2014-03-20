@@ -32,6 +32,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.collision.Ray;
 
 import de.codesourcery.springmass.simulation.*;
 import de.codesourcery.springmass.ui.ControlPanel;
@@ -41,7 +42,7 @@ import de.codesourcery.springmass.ui.opengl.OpenGLRenderPanel;
 
 public class Main extends Frame {
 
-	public static final boolean USE_OPENGL = false;
+	public static final boolean USE_OPENGL = true;
 
 	private final Object SIMULATOR_LOCK = new Object();
 
@@ -227,12 +228,22 @@ public class Main extends Frame {
 		{
 			synchronized(SIMULATOR_LOCK) 
 			{
-				final Vector3 p0 = renderPanel.viewToModel( x, y );
-				final Vector3 p1 = renderPanel.viewToModel( x+3, y+3 );
-				final float radiusSquared = p0.dst2(p1);
+				final Vector3 origin = renderPanel.viewToModel( x, y );
 				
-				final Mass result = simulator.getSpringMassSystem().getNearestMass( p0 , radiusSquared );
-				System.out.println("model( "+x+" , "+y+" ) => "+p0+" ( radius = "+Math.sqrt(radiusSquared)+") : got result ? "+(result!=null));
+				float horizontalRestLengthFactor = simulator.getSimulationParameters().getHorizontalRestLengthFactor();
+				float verticalRestLengthFactor = simulator.getSimulationParameters().getHorizontalRestLengthFactor();
+				
+				float scaleX = simulator.getSimulationParameters().getXResolution() / (float) simulator.getSimulationParameters().getGridColumnCount();
+				float scaleY = simulator.getSimulationParameters().getYResolution() / (float) simulator.getSimulationParameters().getGridRowCount();
+						
+				horizontalRestLengthFactor *= scaleX;
+				verticalRestLengthFactor *= scaleY;
+				
+				final float radiusSquared = horizontalRestLengthFactor*horizontalRestLengthFactor+verticalRestLengthFactor*verticalRestLengthFactor;
+				
+				final Ray pickRay = new Ray( origin , renderPanel.getCameraController().getViewDirection() );
+				final Mass result = simulator.getSpringMassSystem().getNearestMass( pickRay, radiusSquared );
+				System.out.println("model( "+x+" , "+y+" ) => "+origin+" ( radius = "+Math.sqrt(radiusSquared)+") : got result ? "+(result!=null));
 				return result;
 			}
 		}

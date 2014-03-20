@@ -254,7 +254,7 @@ public class SimulationParamsBuilder {
 		renderSprings = false;
 		renderMasses = false;
 		
-		mouseDragZDepth = -100;
+		mouseDragZDepth = 100;
 
 		iterationCount = 10;		
 		integrationTimeStep = 50;	

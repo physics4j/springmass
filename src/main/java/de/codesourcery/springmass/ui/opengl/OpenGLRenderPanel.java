@@ -114,6 +114,10 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
     private final MyCameraController cameraController;
 
 	private final MyInputController inputProcessor;
+	
+	protected static enum Button {
+		LEFT,RIGHT,MIDDLE;
+	}
 			
 	protected class MyInputController extends FPSCameraController 
 	{
@@ -128,8 +132,9 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 			boolean result = super.touchUp(screenX, screenY, pointer, button);
 			if ( ! mouseListener.isEmpty() ) 
 			{
+				final MouseEvent event = toMouseEvent(screenX,screenY);				
 				for ( MouseListener l : mouseListener ) {
-					l.mouseReleased( toMouseEvent(screenX,screenY) );
+					l.mouseReleased( event );
 				}
 				result = true;
 			}
@@ -140,14 +145,34 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 			return new MouseEvent(DUMMY_COMPONENT,123,System.currentTimeMillis(),0,screenX,screenY,1,false,MouseEvent.BUTTON2);			
 		}
 		
+		private MouseEvent toMouseClickEvent(int screenX,int screenY,Button button) 
+		{
+			final int code;
+			switch(button) {
+			case LEFT:
+				code = MouseEvent.BUTTON1;
+				break;
+			case MIDDLE:
+				code = MouseEvent.BUTTON2;
+				break;
+			case RIGHT:
+				code = MouseEvent.BUTTON3;
+				break;
+			default:
+				throw new RuntimeException("Error");
+			}
+			return new MouseEvent(DUMMY_COMPONENT,123,System.currentTimeMillis(),0,screenX,screenY,1,false,code);
+		}		
+		
 		@Override
 		public boolean touchDragged(int screenX, int screenY, int pointer) 
 		{
 			boolean result = super.touchDragged(screenX, screenY, pointer);
 			if ( ! mouseMotionListener.isEmpty() ) 
 			{
+				final MouseEvent event = toMouseEvent(screenX,screenY);				
 				for (MouseMotionListener l : mouseMotionListener) {
-					l.mouseDragged( toMouseEvent(screenX,screenY) );
+					l.mouseDragged( event );
 				}
 				result = true;
 			}			
@@ -160,8 +185,9 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 			boolean result = super.touchDown(screenX, screenY, pointer, button);
 			if ( ! mouseListener.isEmpty() ) 
 			{
+				final MouseEvent event = toMouseEvent(screenX,screenY);				
 				for ( MouseListener l : mouseListener ) {
-					l.mousePressed( toMouseEvent(screenX,screenY) );
+					l.mousePressed( event );
 				}
 				result = true;
 			}			
@@ -178,8 +204,9 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 			boolean result = super.mouseMoved( screenX , screenY);
 			if ( ! mouseMotionListener.isEmpty() ) 
 			{
+				final MouseEvent event = toMouseEvent(screenX,screenY);				
 				for (MouseMotionListener l : mouseMotionListener) {
-					l.mouseMoved( toMouseEvent(screenX,screenY) );
+					l.mouseMoved( event );
 				}
 				result=true;
 			}				
@@ -192,8 +219,9 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 			boolean result = super.keyUp(keycode);
 			if ( ! keyListener.isEmpty() ) 
 			{
+				final KeyEvent event = toKeyEvent(keycode);				
 				for ( KeyListener l : keyListener ) {
-					l.keyReleased( toKeyEvent(keycode) );
+					l.keyReleased( event );
 				}
 			}			
 			return result;
@@ -206,8 +234,9 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 			
 			if ( ! keyListener.isEmpty() ) 
 			{
+				final KeyEvent event = toKeyEvent(character);
 				for ( KeyListener l : keyListener ) {
-					l.keyTyped( toKeyEvent(character) );
+					l.keyTyped( event );
 				}
 				result=true;
 			}
@@ -226,10 +255,11 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 		@Override
 		public boolean keyDown(int keycode) {
 			boolean result = super.keyDown(keycode);
-			if ( keyListener != null ) 
+			if ( ! keyListener.isEmpty() ) 
 			{
+				final KeyEvent event = toKeyEvent(keycode);
 				for ( KeyListener l : keyListener ) {
-					l.keyPressed( toKeyEvent(keycode) );
+					l.keyPressed( event );
 				}
 				result=true;
 			}
@@ -250,11 +280,28 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 		}
 
 		@Override
-		public void onLeftClick() {
+		public void onLeftClick(int screenX,int screenY) 
+		{
+			if ( ! mouseListener.isEmpty() ) 
+			{
+				System.out.println("Left click: "+screenX+","+screenY);
+				final MouseEvent event = toMouseClickEvent(screenX,screenY,Button.LEFT); 
+				for ( MouseListener l : mouseListener ) {
+					l.mousePressed( event );
+				}
+			}					
 		}
 
 		@Override
-		public void onRightClick() {
+		public void onRightClick(int screenX,int screenY) 
+		{
+			if ( ! mouseListener.isEmpty() ) 
+			{
+				final MouseEvent event = toMouseClickEvent(screenX,screenY,Button.RIGHT);
+				for ( MouseListener l : mouseListener ) {
+					l.mousePressed( event );
+				}
+			}			
 		}
 	};
 
@@ -265,7 +312,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 		public MyCameraController(int width,int height) 
 		{
 			this.camera = new PerspectiveCamera();
-			this.camera.position.set( 500 , -300 , 1000 );
+			this.camera.position.set( 0 , 0 , 2000 );
 			this.camera.far = 100000;
 			this.camera.near = 1;
 			this.camera.fieldOfView = 60;
@@ -344,14 +391,6 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 		}
 	}
 
-	private int getWidth() {
-		return width;
-	}
-
-	private int getHeight() {
-		return height;
-	}
-
 	@Override
 	public void addTo(Container container) 
 	{
@@ -361,11 +400,11 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 	 * @see de.codesourcery.springmass.springmass.IRenderPanel#viewToModel(int, int)
 	 */
 	@Override
-	public Vector3 viewToModel(int x,int y) {
-
-		float scaleX = getWidth() / (float) parameters.getXResolution();
-		float scaleY = getHeight() / (float) parameters.getYResolution();
-		return new Vector3( x / scaleX , y / scaleY , 0 );
+	public Vector3 viewToModel(int x,int y) 
+	{
+		final Vector3 tmp = new Vector3(x,y,0); // z = = => point on NEAR plane
+		cameraController.camera.unproject( tmp );
+		return tmp;
 	}
 
 	/* (non-Javadoc)
@@ -374,20 +413,11 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 	@Override
 	public Point modelToView(Vector3 vec) 
 	{
-		double scaleX = getWidth() / (double) parameters.getXResolution();
-		double scaleY = getHeight() / (double) parameters.getYResolution();
-		return modelToView( vec , scaleX , scaleY ); 
+		final Vector3 tmp = new Vector3( vec );
+		cameraController.camera.project( tmp );
+		return new Point( (int) Math.round(tmp.x) , Math.round(tmp.y ) );
 	}
 
-	/* (non-Javadoc)
-	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelToView(de.codesourcery.springmass.math.Vector4, double, double)
-	 */
-	@Override
-	public Point modelToView(Vector3 vec,double scaleX,double scaleY) 
-	{
-		return new Point( (int) Math.round( vec.x * scaleX ) , (int) Math.round( vec.y * scaleY ) );
-	}		
-	
 	/* (non-Javadoc)
 	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelChanged()
 	 */
@@ -406,6 +436,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 		}
 	}
 
+	@Override
 	public boolean renderFrame(float currentFPS) 
 	{
 		synchronized (SIMULATION_LOCK) 
@@ -461,7 +492,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 		
         spriteBatch.begin();
         
-        font.draw(spriteBatch, "FPS: "+FPS_FORMAT.format( currentAvgFPS ), 10, height - 20 );
+        font.draw(spriteBatch, "FPS: "+FPS_FORMAT.format( currentAvgFPS )+" ( "+this.cameraController.camera.position+") ", 10, height - 20 );
         spriteBatch.end();
 	}
 	

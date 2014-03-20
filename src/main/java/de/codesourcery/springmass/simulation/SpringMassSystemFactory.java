@@ -43,31 +43,36 @@ public class SpringMassSystemFactory {
 		
 		int springCount = 0;
 
-		float scaleX = parameters.getXResolution() / (parameters.getGridColumnCount()+parameters.getGridColumnCount()*0.5f);
-		float scaleY = parameters.getYResolution() / (parameters.getGridRowCount()+parameters.getGridRowCount()*0.5f);
+		float scaleX = parameters.getXResolution() / (float) parameters.getGridColumnCount();
+		float scaleY = parameters.getYResolution() / (float) parameters.getGridRowCount();
+
+		final float horizRestLength = scaleX * parameters.getHorizontalRestLengthFactor();
+		final float verticalRestLength = scaleY*parameters.getVerticalRestLengthFactor();
 		
 		final float factorDecrement = 1.0f / parameters.getGridRowCount();
-		final float xOffset = parameters.getXResolution()*0.2f;
-		final float yOffset = scaleY;
+		
+		final float xOffset = -((parameters.getGridColumnCount()-1)*horizRestLength)/2f;
+		final float yOffset = ((parameters.getGridRowCount()-1)*verticalRestLength)/2f;
 
-		float minX=Float.MAX_VALUE;
-		float maxX=Float.MIN_VALUE;
+		float minX=9999999;
+		float minY=9999999;
+		float minZ=9999999;
 		
-		float minY=Float.MAX_VALUE;
-		float maxY=Float.MIN_VALUE;
-		
-		float minZ=Float.MAX_VALUE;
-		float maxZ=Float.MIN_VALUE;
+		float maxX=-9999999;
+		float maxY=-9999999;
+		float maxZ=-9999999;
 		
 		for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
 		{
 			float factor = 1.0f;
 			for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
 			{
-				final Vector3 pos = new Vector3( xOffset + scaleX*x , yOffset + scaleY*factor*y,-10);
+				final Vector3 pos = new Vector3( xOffset + scaleX * x , yOffset - scaleY*factor*y,-10);
+				
 				minX = Math.min( minX , pos.x );
-				minY = Math.min( minX , pos.y);
-				minZ = Math.min( minX , pos.z );
+				minY = Math.min( minY , pos.y);
+				minZ = Math.min( minZ , pos.z );
+				
 				maxX = Math.max( maxX , pos.x );
 				maxY = Math.max( maxY , pos.y );
 				maxZ = Math.max( maxZ , pos.z );
@@ -88,7 +93,6 @@ public class SpringMassSystemFactory {
 		final SpringMassSystem system = new SpringMassSystem(parameters,masses,random);
 
 		// connect masses horizontally
-		final float horizRestLength = scaleX*parameters.getHorizontalRestLengthFactor();
 		for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
 		{
 			for ( int x = 0 ; x < (parameters.getGridColumnCount()-1) ; x++ ) 
@@ -99,7 +103,6 @@ public class SpringMassSystemFactory {
 		}
 
 		// connect masses vertically
-		final float verticalRestLength = scaleY*parameters.getVerticalRestLengthFactor();
 		for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
 		{
 			for ( int y = 0 ; y < (parameters.getGridRowCount()-1) ; y++ ) 

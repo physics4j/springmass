@@ -57,7 +57,7 @@ public final class AWTRenderPanel extends Canvas implements IRenderPanel {
     private final ICameraController cameraController = new AbstractCameraController() {
 
     	private final Vector3 position = new Vector3();
-    	private final Vector3 direction = new Vector3();
+    	private final Vector3 direction = new Vector3(0,0,-1);
 		@Override
 		public Vector3 getPosition() {
 			return position;
@@ -278,7 +278,13 @@ public final class AWTRenderPanel extends Canvas implements IRenderPanel {
 
         float scaleX = getWidth() / (float) parameters.getXResolution();
         float scaleY = getHeight() / (float) parameters.getYResolution();
-        return new Vector3( x / scaleX , y / scaleY , 0 );
+        
+    	final int centerX = getWidth()/2;
+    	final int centerY = getHeight()/2;
+    	
+    	float dx = x - centerX;
+    	float dy = centerY - y;
+        return new Vector3( dx / scaleX , dy / scaleY , 0 );
     }
 
     /* (non-Javadoc)
@@ -295,10 +301,11 @@ public final class AWTRenderPanel extends Canvas implements IRenderPanel {
     /* (non-Javadoc)
 	 * @see de.codesourcery.springmass.springmass.IRenderPanel#modelToView(de.codesourcery.springmass.math.Vector4, double, double)
 	 */
-    @Override
-	public Point modelToView(Vector3 vec,double scaleX,double scaleY) 
+	private Point modelToView(Vector3 vec,double scaleX,double scaleY) 
     {
-        return new Point( (int) Math.round( vec.x * scaleX ) , (int) Math.round( vec.y * scaleY ) );
+    	final int centerX = getWidth()/2;
+    	final int centerY = getHeight()/2;
+        return new Point( (int) Math.round( centerX + vec.x * scaleX ) , (int) Math.round( centerY - vec.y * scaleY ) );
     }		
 
     protected final class Triangle implements Comparable<Triangle> {
