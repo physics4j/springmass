@@ -254,16 +254,15 @@ public class SimulationParamsBuilder {
 		renderSprings = false;
 		renderMasses = false;
 		
-		iterationCount = 10;
-		
 		mouseDragZDepth = -100;
 
-		integrationTimeStep = 50;		
-		forkJoinLoadFactor = 3.0f;	
+		iterationCount = 10;		
+		integrationTimeStep = 50;	
 		
+		forkJoinLoadFactor = 5.0f;	
 		debugPerformance=true;		
 		desiredFPS = 60;
-		waitForVSync = true;		
+		waitForVSync = false;		
 		
 		final float oneDegree = (float) (2f*Math.PI)/360.0f;
 		final float maxAngle = (float) (2*Math.PI - oneDegree);

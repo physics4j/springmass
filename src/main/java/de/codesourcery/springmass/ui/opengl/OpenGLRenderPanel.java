@@ -1,3 +1,18 @@
+/**
+ * Copyright 2012 Tobias Gierke <tobias.gierke@code-sourcery.de>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package de.codesourcery.springmass.ui.opengl;
 
 import java.awt.*;
@@ -34,6 +49,8 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 	
 	private final Object SIMULATION_LOCK = new Object();
 	
+	private volatile boolean frameRendered = false;
+	
 	private static final VertexAttributes LINE_VERTEX_ATTRIBUTES;	
 	
 	static 
@@ -60,7 +77,6 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 	private SimulationParameters parameters;
 	
 	private final FloatArrayBuilder floatArrayBuilder = new FloatArrayBuilder( 10240 , 10240 );
-	private final ShortArrayBuilder shortArrayBuilder = new ShortArrayBuilder( 10240 , 10240);
 	
 	private final DynamicVBO vbo;
 	private final DynamicIBO ibo;
@@ -72,8 +88,6 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 
 	private int width;
 	private int height;
-
-	private final Object BUFFER_LOCK = new Object();
 
 	private ShaderProgram wireProgram;
 	
@@ -190,7 +204,7 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 		}
 		
 		private KeyEvent toKeyEvent(int keyCode) {
-			return new KeyEvent(DUMMY_COMPONENT, 123 , System.currentTimeMillis() , 0, keyCode );
+			return new KeyEvent(DUMMY_COMPONENT, 123 , System.currentTimeMillis() , 0, keyCode , KeyEvent.CHAR_UNDEFINED );
 		}		
 		
 		@Override
@@ -364,34 +378,26 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen
 	@Override
 	public void modelChanged() 
 	{
+		final boolean wait;
 		synchronized (SIMULATION_LOCK) 
-		{                
+		{
 			this.system.updateFromOriginal();
-			if ( this.parameters.isWaitForVSync() ) 
-			{
-				try {
-					SIMULATION_LOCK.wait();
-				} 
-				catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-				}
-			}
-		}        
+			wait = this.parameters.isWaitForVSync();
+			frameRendered = false;				
+		}
+		while ( wait && ! frameRendered ) {
+			// spin-waiting
+		}
 	}
 
 	public boolean renderFrame(float currentFPS) 
 	{
-		synchronized( BUFFER_LOCK ) 
+		synchronized (SIMULATION_LOCK) 
 		{
-			final SimulationParameters params;
-			final SpringMassSystem sys;
-			synchronized (SIMULATION_LOCK) 
-			{
-				params = this.parameters;
-				sys = this.system;
-				render( sys , params  , currentFPS );
-				SIMULATION_LOCK.notifyAll();
-			}
+			final SimulationParameters params  = this.parameters;
+			final SpringMassSystem sys  = this.system;
+			render( sys , params  , currentFPS );
+			frameRendered = true;			
 		}
 		// TODO: Maybe needed?
 		// Toolkit.getDefaultToolkit().sync();

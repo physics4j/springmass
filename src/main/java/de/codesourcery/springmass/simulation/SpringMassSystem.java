@@ -21,8 +21,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import com.badlogic.gdx.math.Vector3;
 
-import de.codesourcery.springmass.math.VectorUtils;
-
 public final class SpringMassSystem 
 {
     private final ReentrantLock lock = new ReentrantLock();	
@@ -78,9 +76,9 @@ public final class SpringMassSystem
 	 * 
 	 * @author tobias.gierke@code-sourcery.de
 	 */
-    public final class Slice implements Iterable<Mass> {
+    public static final class Slice implements Iterable<Mass> {
     	
-    	protected final Mass[][] array = massArray;
+    	protected final Mass[][] array;
     	
     	public final int xStart;
     	public final int yStart;
@@ -101,7 +99,8 @@ public final class SpringMassSystem
     	 * @param height
     	 * @param fetchNeighbours whether to also fetch the right and bottom neighbour of every element being traversed
     	 */
-    	public Slice(int x0,int y0,int width,int height,boolean fetchNeighbours,boolean isAtRightEdge,boolean isAtBottomEdge) {
+    	public Slice(Mass[][] massArray,int x0,int y0,int width,int height,boolean fetchNeighbours,boolean isAtRightEdge,boolean isAtBottomEdge) {
+    		this.array = massArray;
     		this.xStart = x0;
     		this.yStart = y0;
     		this.xEnd = x0 + width;
@@ -256,9 +255,11 @@ public final class SpringMassSystem
             try 
             {
                 // copy positions and flags
-                for ( int x = 0 ; x < params.getGridColumnCount() ; x++ ) 
+                final int columnCount = params.getGridColumnCount();
+                final int rowCount = params.getGridRowCount();                
+				for ( int x = 0 ; x < columnCount ; x++ ) 
                 {
-                    for ( int y = 0 ; y < params.getGridRowCount() ; y++ ) 
+					for ( int y = 0 ; y < rowCount ; y++ ) 
                     {
                         final Mass original = copiedFrom.massArray[x][y];                
                         final Mass clone = this.massArray[x][y];
@@ -276,15 +277,16 @@ public final class SpringMassSystem
                 copiedFrom.unlock();
             }
             
-            // remove all springs that were removed from the original            
-            for ( Spring removedSpring : removed ) 
+            final int len = removed.size();
+            for ( int i = 0; i < len ; i++)
             {
-                Mass m1 = massMappings.get( removedSpring.m1 );
+				final Spring removedSpring = removed.get(i);
+				Mass m1 = massMappings.get( removedSpring.m1 );
                 Mass m2 = massMappings.get( removedSpring.m2 );
                 final Spring copy = removedSpring.createCopy( m1 ,m2 );
                 copy.remove();
                 springs.remove( copy );
-            }
+			}
         } finally {
             unlock();
         }
@@ -506,18 +508,22 @@ public final class SpringMassSystem
 
 	private void calculateNormals(Slice slice) 
     {
+		final Vector3 v1 = new Vector3();
+		final Vector3 v2 = new Vector3();
+		
     	final int xEnd = slice.xEnd;
     	final int yEnd = slice.yEnd;
+    	
     	for ( int x = slice.xStart ; x < xEnd ; x++ ) 
     	{
     		for ( int y = slice.yStart ; y < yEnd ; y++ ) 
     		{
-    			calculateAveragedNormal(x,y,xEnd,yEnd);
+    			calculateAveragedNormal(x,y,xEnd,yEnd,v1,v2);
     		}
     	}
     }
     
-	private void calculateAveragedNormal(int x,int y,int rowCount,int columnCount)
+	private void calculateAveragedNormal(int x,int y,int rowCount,int columnCount,Vector3 v1,Vector3 v2)
 	{
 		final Mass m = massArray[x][y];
 		
@@ -526,9 +532,6 @@ public final class SpringMassSystem
 		normal.set(0,0,0);
 		
 		final Vector3 position = m.currentPosition;
-		
-		final Vector3 v1 = new Vector3();
-		final Vector3 v2 = new Vector3();
 		
 		if ( (x+1) < columnCount && (y+1) < rowCount ) {
 			v1.set( massArray[x+1][y].currentPosition ).sub(position);
@@ -661,6 +664,8 @@ public final class SpringMassSystem
         final Vector3 normalizedWindForce = new Vector3( windForce );
         normalizedWindForce.nor();
         
+        final float maxParticleSpeedSquared = params.getMaxParticleSpeed()  * params.getMaxParticleSpeed() ;
+        
         final Vector3 sumForces = new Vector3();
         final Vector3 posDelta = new Vector3();
         final Vector3 dampening = new Vector3(); 
@@ -677,21 +682,23 @@ public final class SpringMassSystem
 
             sumForces.set(0,0,0);
             
-            final int len = mass.springs.size();
-            for ( int i = 0 ; i < len ; i++ ) {
+            // add wind force
+            if ( applyWindForces ) 
+            {
+            	final Mass rightNeighbour = it.rightNeighbour();
+				final Mass bottomNeighbour = it.bottomNeighbour();
+				addWindForce(sumForces , mass, rightNeighbour , bottomNeighbour , normalizedWindForce, windForce);
+            }
+            
+            // add forces from neighbour masses
+            final int springCount = mass.springs.size();
+            for ( int i = 0 ; i < springCount ; i++ ) {
             	final Spring s= mass.springs.get(i); 
                 if ( s.m1 == mass ) {
                     sumForces.add( s.force );
                 } else {
                     sumForces.sub( s.force );
                 }
-            }
-            
-            if ( applyWindForces ) 
-            {
-            	final Mass rightNeighbour = it.rightNeighbour();
-				final Mass bottomNeighbour = it.bottomNeighbour();
-				addWindForce(sumForces , mass, rightNeighbour , bottomNeighbour , normalizedWindForce, windForce);
             }
 
             // apply gravity
@@ -700,12 +707,18 @@ public final class SpringMassSystem
             posDelta.set(mass.currentPosition).sub(mass.previousPosition);
             
             dampening.set(posDelta).scl( params.getSpringDampening() );
+            
             sumForces.sub( dampening );
 
             sumForces.scl( 1.0f / (mass.mass*deltaTSquared) );
             posDelta.add( sumForces );
 
-            VectorUtils.clampMagnitudeInPlace( posDelta, params.getMaxParticleSpeed() );
+            // clamp speed
+            float len = posDelta.len2(); 
+            if ( len > maxParticleSpeedSquared ) {
+            	len = (float) Math.sqrt( len );
+            	posDelta.scl( params.getMaxParticleSpeed() / len );
+            }
             
             mass.previousPosition.set( mass.currentPosition );            
             mass.currentPosition.add( posDelta );
@@ -777,10 +790,10 @@ public final class SpringMassSystem
 	    	for ( x = 0 ; x < xEnd ; x+= horizSize ) 
 	    	{
 	    		boolean isAtRightEdge = (x+horizRest) >= xEnd;
-	    		result.add( new Slice( x , y , horizSize , vertSize , iteratorNeedsNeighbours , isAtRightEdge , isAtBottomEdge ) );
+	    		result.add( new Slice( data, x , y , horizSize , vertSize , iteratorNeedsNeighbours , isAtRightEdge , isAtBottomEdge ) );
 	    	}
 	    	if ( horizRest > 0 ) {
-	    		result.add( new Slice( x , y , horizRest , vertSize , iteratorNeedsNeighbours , true , isAtBottomEdge  ) );
+	    		result.add( new Slice( data, x , y , horizRest , vertSize , iteratorNeedsNeighbours , true , isAtBottomEdge  ) );
 	    	}
     	}
     	if ( vertRest > 0 ) 
@@ -788,10 +801,10 @@ public final class SpringMassSystem
 	    	for ( x = 0 ; x < xEnd ; x+= horizSize ) 
 	    	{
 	    		boolean isAtRightEdge = (x+horizRest) >= xEnd;
-	    		result.add( new Slice( x , y , horizSize , vertRest , iteratorNeedsNeighbours , isAtRightEdge , true ) );
+	    		result.add( new Slice( data, x , y , horizSize , vertRest , iteratorNeedsNeighbours , isAtRightEdge , true ) );
 	    	}    
 	    	if ( horizRest > 0 ) {
-	    		result.add( new Slice( x , y , horizRest , vertRest , iteratorNeedsNeighbours , true , true ) );
+	    		result.add( new Slice( data, x , y , horizRest , vertRest , iteratorNeedsNeighbours , true , true ) );
 	    	}	    	
     	}
     	return result;
