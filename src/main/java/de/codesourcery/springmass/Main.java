@@ -41,7 +41,7 @@ import de.codesourcery.springmass.ui.opengl.OpenGLRenderPanel;
 
 public class Main extends Frame {
 
-	public static final boolean USE_OPENGL = true;
+	public static final boolean USE_OPENGL = false;
 
 	private final Object SIMULATOR_LOCK = new Object();
 
@@ -227,16 +227,13 @@ public class Main extends Frame {
 		{
 			synchronized(SIMULATOR_LOCK) 
 			{
-				final SimulationParameters params = simulator.getSimulationParameters();
-
-				final double gridWidth= params.getXResolution() / params.getGridColumnCount();
-				final double gridHeight = params.getYResolution() / params.getGridRowCount();
-				final double pickDepth = Math.abs( params.getMouseDragZDepth() + 1 );
-
-				final double radiusSquared = gridWidth*gridWidth + gridHeight*gridHeight + pickDepth*pickDepth;
-
-				final Vector3 mousePointer = renderPanel.viewToModel( x, y );
-				return simulator.getSpringMassSystem().getNearestMass( mousePointer , radiusSquared );
+				final Vector3 p0 = renderPanel.viewToModel( x, y );
+				final Vector3 p1 = renderPanel.viewToModel( x+3, y+3 );
+				final float radiusSquared = p0.dst2(p1);
+				
+				final Mass result = simulator.getSpringMassSystem().getNearestMass( p0 , radiusSquared );
+				System.out.println("model( "+x+" , "+y+" ) => "+p0+" ( radius = "+Math.sqrt(radiusSquared)+") : got result ? "+(result!=null));
+				return result;
 			}
 		}
 

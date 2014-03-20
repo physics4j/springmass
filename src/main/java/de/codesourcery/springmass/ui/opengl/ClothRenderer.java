@@ -51,14 +51,14 @@ public class ClothRenderer
 	
 	protected DynamicVBO vbo;
 	
-	protected ShaderProgram polyProgram;	
+	protected ShaderProgram clothShaderProgram;	
 	
 	public ClothRenderer() throws IOException 
 	{
 		this.vbo = new DynamicVBO(false , 65536 , 7*4 );
 		
 		try {
-			polyProgram = ShaderUtils.loadShader("default");
+			clothShaderProgram = ShaderUtils.loadShader("default");
 		} catch(Exception e) {
 			throw new IOException("Failed to load 'default' shader: "+e.getMessage(),e);
 		}		
@@ -79,14 +79,14 @@ public class ClothRenderer
 		final boolean checkArea = parameters.getMaxSpringLength() > 0;
 		final double maxLenSquared = parameters.getMaxSpringLength()*parameters.getMaxSpringLength();
 
-		polyProgram.begin();
+		clothShaderProgram.begin();
 
-		polyProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
+		clothShaderProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
 		//shaderProgram.setUniformf( "diffuseColor" , new Vector3(1,0,0) );
 
-		polyProgram.setUniformMatrix( "u_modelView" , modelViewMatrix );
+		clothShaderProgram.setUniformMatrix( "u_modelView" , modelViewMatrix );
 		//shaderProgram.setUniformMatrix( "normalMatrix", camera. );		
-		polyProgram.setUniformf( "vLightPos" , new Vector3(100,-300,-1000) );
+		clothShaderProgram.setUniformf( "vLightPos" , new Vector3(100,-300,-1000) );
 
 		final Triangle t1 = new Triangle();
 		final Triangle t2 = new Triangle();	    
@@ -94,7 +94,7 @@ public class ClothRenderer
 		floatArrayBuilder.begin();
 		
 		// bind VBO
-		vbo.bind( polyProgram , POLYGON_VERTEX_ATTRIBUTES );		
+		vbo.bind( clothShaderProgram , POLYGON_VERTEX_ATTRIBUTES );		
 		
 		int vertexCount = 0;
 		for ( int y = 0 ; y < rows-1 ; y++) 
@@ -147,9 +147,9 @@ public class ClothRenderer
 			gl20.glDrawArrays(GL20.GL_TRIANGLES, 0 , vertexCount );
 		}
 		
-		polyProgram.end();
+		clothShaderProgram.end();
 		
-		vbo.unbind( polyProgram , POLYGON_VERTEX_ATTRIBUTES);
+		vbo.unbind( clothShaderProgram , POLYGON_VERTEX_ATTRIBUTES);
 	}	
 
 	private void triangle( Triangle t ) 
@@ -166,9 +166,9 @@ public class ClothRenderer
 	
 	public void dispose() 
 	{
-		if ( polyProgram != null ) {
-			polyProgram.dispose();
-			polyProgram=null;
+		if ( clothShaderProgram != null ) {
+			clothShaderProgram.dispose();
+			clothShaderProgram=null;
 		}
 		if ( vbo != null ) {
 			vbo.dispose();

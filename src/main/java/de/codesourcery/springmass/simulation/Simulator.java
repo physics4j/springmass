@@ -29,6 +29,7 @@ public abstract class Simulator {
 
 		this.simulationClock = new SimulationClock() {
 
+			private final long startTimestamp = System.currentTimeMillis();
 			private long tickCounter = 0;
 			private long minTime=Long.MAX_VALUE;
 			private long maxTime=Long.MIN_VALUE;
@@ -37,7 +38,10 @@ public abstract class Simulator {
 			@Override
 			protected void tick() 
 			{
-				long stepTime = -System.currentTimeMillis();
+				final long now = System.currentTimeMillis();
+				final boolean warmupFinished = (now - startTimestamp) > (10*1000);
+				
+				long stepTime;
 				
 				try {
 				    system.step();
@@ -48,16 +52,19 @@ public abstract class Simulator {
 				} 
 				finally 
 				{
-				    stepTime += System.currentTimeMillis();
-				    
-	                minTime = Math.min(minTime, stepTime);
-	                maxTime = Math.max(maxTime, stepTime);
-	                sumTime += stepTime;
+				    stepTime= System.currentTimeMillis() - now;
+				
+				    if ( warmupFinished ) 
+				    {
+				    	minTime = Math.min(minTime, stepTime);
+				    	maxTime = Math.max(maxTime, stepTime);
+				    	sumTime += stepTime;
 	                
-	                tickCounter++;				    
+				    	tickCounter++;
+				    }
 				}
 
-				if ( parameters.isDebugPerformance() && (tickCounter%30) == 0 ) 
+				if ( parameters.isDebugPerformance() && warmupFinished && (tickCounter%30) == 0 ) 
 				{
 				    final float avgTime = sumTime / (float) tickCounter; 
 					System.out.println("Simulation time: current: "+stepTime+" ms / min: "+minTime+" ms / avg: "+avgTime+" ms / max: "+maxTime+" ms");

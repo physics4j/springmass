@@ -732,7 +732,7 @@ public final class SpringMassSystem
     private <T> void forEachParallel(List<T> data,ParallelTaskCreator<T> taskCreator) {
 
     	final int chunkSize = data.size() / forkJoinBatchCount;
-        final List<List<T>> chunks = splitList( data , chunkSize );
+        final List<List<T>> chunks = sliceList( data , chunkSize );
         final CountDownLatch latch = new CountDownLatch(chunks.size());
         for ( List<T> chunk : chunks )
         {
@@ -748,7 +748,7 @@ public final class SpringMassSystem
     
     private void forEachParallel(Mass[][] data,ParallelTaskCreator<Mass> taskCreator,boolean iteratorNeedsNeighbours) 
     {
-        final List<Slice> slices = splitArray( data , iteratorNeedsNeighbours );
+        final List<Slice> slices = sliceArray( data , iteratorNeedsNeighbours );
         final CountDownLatch latch = new CountDownLatch( slices.size() );
         
         for ( Slice slice : slices )
@@ -763,7 +763,7 @@ public final class SpringMassSystem
         }
     }    
     
-    private <T> List<Slice> splitArray(final Mass[][] data,boolean iteratorNeedsNeighbours) 
+    private <T> List<Slice> sliceArray(final Mass[][] data,boolean iteratorNeedsNeighbours) 
     {
     	int horizSize = (int) Math.ceil( Math.sqrt( forkJoinBatchCount) );
     	if ( horizSize < 1 ) {
@@ -810,7 +810,7 @@ public final class SpringMassSystem
     	return result;
     }
 
-    private <T> List<List<T>> splitList(final List<T> list,final int chunkSize) 
+    private <T> List<List<T>> sliceList(final List<T> list,final int chunkSize) 
     {
         final List<List<T>> result = new ArrayList<List<T>>();
         final int listSize = list.size();
