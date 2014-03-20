@@ -596,13 +596,11 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		wireProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
 		
 		floatArrayBuilder.begin();
-		shortArrayBuilder.begin();
 		
-		// bind buffers
+		// bind VBO
 		vbo.bind( wireProgram , LINE_VERTEX_ATTRIBUTES );
-		ibo.bind();			
 		
-		int index = 0;
+		int vertexCount = 0;
         for ( Spring s : system.getSprings() ) 
         {
             if ( s.doRender ) 
@@ -614,52 +612,42 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 				floatArrayBuilder.put( s.m1.currentPosition , 1 ); // 4 floats
 				floatArrayBuilder.put( r , g , b ); // 3 floats
 				
-				shortArrayBuilder.put( (short) index );
-				
 				floatArrayBuilder.put( s.m2.currentPosition  , 1 );
 				floatArrayBuilder.put( r , g , b );
 				
-				shortArrayBuilder.put( (short) (index+1) );
+				vertexCount += 2;
 				
-				index += 2;
-				
-				if ( ( index + 2 ) >= 65535 ) 
-				{
-					// populate buffers
-					int size = floatArrayBuilder.end();
-					
-					vbo.setVertices( floatArrayBuilder.array , 0 , size );
-					ibo.setIndices( shortArrayBuilder.array , 0 , index );
-					
-					// render
-	    			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
-	    			gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , ibo.getBuffer() );        						
-					
-					// reset 
-					index = 0;
-					floatArrayBuilder.begin();
-					shortArrayBuilder.begin();						
-				}
+//				if ( ( vertexCount + 2 ) >= 65535 ) 
+//				{
+//					// upload buffer
+//					final int size = floatArrayBuilder.end();
+//					vbo.setVertices( floatArrayBuilder.array , 0 , size );
+//					
+//					// render
+//	    			// gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , ibo.getBuffer() );        						
+//	    			gl20.glDrawArrays(GL20.GL_LINES, 0 , vertexCount );
+//	    			
+//					// reset 
+//					vertexCount = 0;
+//					floatArrayBuilder.begin();
+//				}
             }
         }
 
-        if ( index != 0) 
+        if ( vertexCount != 0) 
         {
 			// populate buffers
 			final int size = floatArrayBuilder.end();
-			
 			vbo.setVertices( floatArrayBuilder.array , 0 , size );
-			ibo.setIndices( shortArrayBuilder.array , 0 , index );
 			
 			// render
-			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
-			gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , 0 );        						
+			gl20.glDrawArrays(GL20.GL_LINES, 0 , vertexCount );
+			// gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , 0 );        						
         }
         wireProgram.end();
         
-		// unbind buffers
+		// unbind VBO
 		vbo.unbind( wireProgram , LINE_VERTEX_ATTRIBUTES);
-		ibo.unbind();
 		
 		gl20.glDisable(GL11.GL_POLYGON_OFFSET_LINE);            
 	}
