@@ -35,7 +35,7 @@ import com.badlogic.gdx.math.Vector3;
 
 import de.codesourcery.springmass.render.IRenderPanel;
 import de.codesourcery.springmass.render.OpenGLRenderPanel;
-import de.codesourcery.springmass.render.RenderPanel;
+import de.codesourcery.springmass.render.AWTRenderPanel;
 
 public class Main extends Frame {
 
@@ -119,7 +119,7 @@ public class Main extends Frame {
 
 	private void setupAWTPanel(Simulator simulator) 
 	{
-		renderPanel = new RenderPanel();
+		renderPanel = new AWTRenderPanel();
 		renderPanel.setSimulator( simulator );
 
 		MyKeyListener keyListener = new MyKeyListener();

@@ -1,5 +1,7 @@
 package de.codesourcery.springmass.springmass;
 
+import de.codesourcery.springmass.math.SphericalCoordinates;
+
 
 public final class WindParameters {
 

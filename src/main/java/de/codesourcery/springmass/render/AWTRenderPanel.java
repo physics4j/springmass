@@ -35,7 +35,7 @@ import com.badlogic.gdx.math.Vector3;
 import de.codesourcery.springmass.math.VectorUtils;
 import de.codesourcery.springmass.springmass.*;
 
-public final class RenderPanel extends Canvas implements IRenderPanel {
+public final class AWTRenderPanel extends Canvas implements IRenderPanel {
 
     private final Object SIMULATION_LOCK = new Object();
 
@@ -212,7 +212,7 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
         }    
     };
 
-    public RenderPanel() 
+    public AWTRenderPanel() 
     {
         setFocusable(true);
         addComponentListener( new ComponentAdapter() 
@@ -303,13 +303,18 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
         private final Vector3 p0;
         private final Vector3 p1;
         private final Vector3 p2;
+        private final Vector3 normal;
         private final double z;
 
-        public Triangle(Vector3 p0,Vector3 p1,Vector3 p2) {
-            this.p0 = p0;
-            this.p1 = p1;
-            this.p2 = p2;
-            this.z = (p0.z+p1.z+p2.z)/3;
+        public Triangle(Mass p0,Mass p1,Mass p2) 
+        {
+            this.p0 = p0.currentPosition;
+            this.p1 = p1.currentPosition;
+            this.p2 = p2.currentPosition;
+            this.normal = new Vector3( p0.normal );
+            this.normal.add( p1.normal ).add( p2.normal );
+            this.normal.scl( 1.0f/3.0f );
+            this.z = (this.p0.z+this.p1.z+this.p2.z)/3;
         }
 
         public boolean noSideExceedsLengthSquared(double lengthSquared) 
@@ -331,9 +336,7 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
 
         public Vector3 getSurfaceNormal() 
         {
-            Vector3 v1 = new Vector3(p1).sub( p0 );
-            Vector3 v2 = new Vector3(p2).sub( p0 );
-            return v2.crs( v1 ).nor();
+            return normal;
         }
 
         public Vector3 calculateLightVector(Vector3 lightPos) {
@@ -463,13 +466,8 @@ public final class RenderPanel extends Canvas implements IRenderPanel {
                     Mass m2 = masses[x][y+1];
                     Mass m3 = masses[x+1][y+1];
 
-                    Vector3 p0 = m0.currentPosition;
-                    Vector3 p1 = m1.currentPosition;
-                    Vector3 p2 = m2.currentPosition;
-                    Vector3 p3 = m3.currentPosition;
-
-                    Triangle t1 = new Triangle(p0,p1,p2);
-                    Triangle t2 = new Triangle(p1,p3,p2);							
+                    Triangle t1 = new Triangle(m0,m1,m2);
+                    Triangle t2 = new Triangle(m1,m3,m2);							
                     if ( checkArea ) {
                         if ( t1.noSideExceedsLengthSquared( maxLenSquared ) ) {
                             triangles.add( t1 );

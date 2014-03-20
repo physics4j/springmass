@@ -15,17 +15,8 @@
  */
 package de.codesourcery.springmass.springmass;
 
-import java.util.ArrayList;
-import java.util.IdentityHashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.badlogic.gdx.math.Vector3;
@@ -82,15 +73,15 @@ public final class SpringMassSystem
 	 * 
 	 * @author tobias.gierke@code-sourcery.de
 	 */
-    protected final class Slice implements Iterable<Mass> {
+    public final class Slice implements Iterable<Mass> {
     	
     	private final Mass[][] array = massArray;
     	
-    	private final int xStart;
-    	private final int yStart;
+    	public final int xStart;
+    	public final int yStart;
     	
-    	private final int xEnd;
-    	private final int yEnd;
+    	public final int xEnd;
+    	public final int yEnd;
     	
     	private final boolean fetchNeighbours;
     	
@@ -395,13 +386,16 @@ public final class SpringMassSystem
         {
         	windSimulator.step();
         	
+        	final boolean springsCanBreak = params.getMaxSpringLength() > 0;
             for ( int count = params.getIterationCount() ; count > 0 ; count--) 
             {
                 // solve constraints
                 solveConstraints();
 
                 // remove springs exceeding the max. length
-                removeBrokenSprings(springs);
+                if ( springsCanBreak ) {
+                	removeBrokenSprings(springs);
+                }
 
                 // apply spring forces to particles
                 if ( count == 1 ) 
@@ -410,12 +404,99 @@ public final class SpringMassSystem
                 } else {
                 	applyForces( zeroGravity , false ); // only apply gravity once
                 }
-            }        	
+            }      
+            
+            calculateNormals();
         } 
         finally {
             unlock();
         }
     }
+    
+    private void calculateNormals() 
+    {
+    	final ParallelTaskCreator<Mass> taskCreator = new ParallelTaskCreator<Mass>() {
+
+			@Override
+			public Runnable createTask(final Iterable<Mass> chunk,final CountDownLatch taskFinishedLatch) 
+			{
+				return new Runnable() {
+
+					@Override
+					public void run() 
+					{
+						try {
+							calculateNormals( (Slice) chunk );
+						} 
+						finally {
+							taskFinishedLatch.countDown();
+						}
+					}
+				};
+			}
+    		
+    	};
+		forEachParallel(massArray, taskCreator , params.getForkJoinBatchSize() , false );
+	}
+
+	private void calculateNormals(Slice slice) 
+    {
+    	final int xEnd = slice.xEnd;
+    	final int yEnd = slice.yEnd;
+    	for ( int x = slice.xStart ; x < xEnd ; x++ ) 
+    	{
+    		for ( int y = slice.yStart ; y < yEnd ; y++ ) 
+    		{
+    			calculateAveragedNormal(x,y,xEnd,yEnd);
+    		}
+    	}
+    }
+    
+	private void calculateAveragedNormal(int x,int y,int rowCount,int columnCount)
+	{
+		final Mass m = massArray[x][y];
+		
+		final Vector3 normal = m.normal;
+		normal.set(0,0,0);
+		
+		final Vector3 position = m.currentPosition;
+		
+		final Vector3 v1 = new Vector3();
+		final Vector3 v2 = new Vector3();
+		
+		int count = 0;
+		
+		if ( (x+1) < columnCount && (y+1) < rowCount ) {
+			v1.set( massArray[x+1][y].currentPosition ).sub(position);
+			v2.set( massArray[x][y+1].currentPosition ).sub(position);
+			normal.add( v1.crs( v2 ) );
+			count++;
+		}
+		
+		if ( (x+1) < columnCount && (y-1) >= 0 ) {
+			v1.set( massArray[x][y-1].currentPosition ).sub(position);			
+			v2.set( massArray[x+1][y].currentPosition ).sub(position);
+			normal.add( v1.crs( v2 ) );
+			count++;
+		}	
+		
+		if ( (x-1) >= 0 && (y-1) >= 0 ) {
+			v1.set( massArray[x-1][y].currentPosition ).sub(position);
+			v2.set( massArray[x][y-1].currentPosition ).sub(position);
+			normal.add( v1.crs( v2 )  );
+			count++;
+		}	
+		
+		if ( (x-1) >= 0 && (y+1) < rowCount ) {
+			v1.set( massArray[x][y+1].currentPosition ).sub(position);			
+			v2.set( massArray[x-1][y].currentPosition ).sub(position);
+			normal.add( v1.crs( v2 ) );
+			count++;
+		}		
+
+		normal.scl( 1.0f / (float) count );
+		normal.nor();
+	}    
     
     private Vector3 calculateWindForce(Mass mass,Mass rightNeighbour,Mass bottomNeighbour, Vector3 normalizedWindForce,Vector3 windForce) 
     {
@@ -441,10 +522,6 @@ public final class SpringMassSystem
 	private void removeBrokenSprings(List<Spring> springs) 
     {
         double maxSpringLengthSquared = params.getMaxSpringLength();
-        if ( maxSpringLengthSquared <= 0 ) {
-            return;
-        }
-
         maxSpringLengthSquared *= maxSpringLengthSquared;
         for ( Iterator<Spring> it = springs.iterator() ; it.hasNext() ; )
         {

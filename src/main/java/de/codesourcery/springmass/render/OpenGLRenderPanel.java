@@ -477,10 +477,39 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		inputProcessor.update();
 		
 		// clear buffers
-		GL20 gl20 = Gdx.graphics.getGL20();
+		final GL20 gl20 = Gdx.graphics.getGL20();
 		gl20.glClearColor( 1 , 1, 1, 1 );
 		gl20.glClear( GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT );
 
+		// setup transformations
+		final Matrix4 modelMatrix = new Matrix4().idt();
+		 modelMatrix.scale(2f,2f,1f);
+		
+		final Matrix4 modelViewMatrix = new Matrix4( cameraController.camera.view );
+		modelViewMatrix.mul(  modelMatrix );
+		
+		final Matrix4 modelViewProjectionMatrix = new Matrix4( cameraController.camera.projection );
+		modelViewProjectionMatrix.mul(  modelViewMatrix );	
+		
+		// render cloth
+		renderCloth(modelMatrix,modelViewMatrix,modelViewProjectionMatrix);
+
+		if ( parameters.isRenderMasses() ) 
+		{
+			renderMasses(modelViewProjectionMatrix);
+		}
+
+		// render springs
+        if ( parameters.isRenderSprings() || parameters.isRenderAllSprings() ) 
+        {
+        	renderSprings(modelViewProjectionMatrix);
+        }
+	}
+	
+	private void renderCloth(Matrix4 modelMatrix,Matrix4 modelViewMatrix,Matrix4 modelViewProjectionMatrix) 
+	{
+		final GL20 gl20 = Gdx.graphics.getGL20();
+		
 		gl20.glEnable( GL20.GL_DEPTH_TEST );
 		gl20.glDisable( GL20.GL_CULL_FACE );
 		
@@ -491,15 +520,6 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		final double maxLenSquared = parameters.getMaxSpringLength()*parameters.getMaxSpringLength();
 
 		polyProgram.begin();
-		
-		final Matrix4 modelMatrix = new Matrix4().idt();
-		 modelMatrix.scale(2f,2f,1f);
-		
-		final Matrix4 modelViewMatrix = new Matrix4( cameraController.camera.view );
-		modelViewMatrix.mul(  modelMatrix );
-		
-		final Matrix4 modelViewProjectionMatrix = new Matrix4( cameraController.camera.projection );
-		modelViewProjectionMatrix.mul(  modelViewMatrix );		
 		
 		polyProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
 //		shaderProgram.setUniformf( "diffuseColor" , new Vector3(1,0,0) );
@@ -515,40 +535,27 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		final VertexInfo v0 = new VertexInfo();
 		final VertexInfo v1 = new VertexInfo();
 		final VertexInfo v2 = new VertexInfo();
-		final VertexInfo v3 = new VertexInfo();		
 		
 		final Triangle t1 = new Triangle();
 		final Triangle t2 = new Triangle();	    
 		
-		final Vector3 normal0 = new Vector3();
-		final Vector3 normal1 = new Vector3();
-		final Vector3 normal2 = new Vector3();
-		final Vector3 normal3 = new Vector3();
-
 		final Mass[][] masses = system.getMassArray();
 		for ( int y = 0 ; y < rows-1 ; y++) 
 		{
 			for ( int x = 0 ; x < columns-1 ; x++) 
 			{
 				Mass m0 = masses[x][y];
-				calculateAveragedNormal( x , y , masses , normal0 , parameters );
-				
 				Mass m1 = masses[x+1][y];
-				calculateAveragedNormal( x+1 , y , masses , normal1 , parameters );
-				
 				Mass m2 = masses[x][y+1];
-				calculateAveragedNormal( x , y+1 , masses , normal2 , parameters );
-				
 				Mass m3 = masses[x+1][y+1];
-				calculateAveragedNormal( x+1 , y+1 , masses , normal3 , parameters );
 
 				Vector3 p0 = m0.currentPosition;
 				Vector3 p1 = m1.currentPosition;
 				Vector3 p2 = m2.currentPosition;
 				Vector3 p3 = m3.currentPosition;
 
-				t1.set(p0,p2,p1,normal0,normal2,normal1);
-				t2.set(p1,p2,p3,normal1,normal2,normal3);	
+				t1.set(p0,p2,p1,m0.normal,m2.normal,m1.normal);
+				t2.set(p1,p2,p3,m1.normal,m2.normal,m3.normal);	
 				
 				if ( checkArea ) 
 				{
@@ -574,205 +581,165 @@ public class OpenGLRenderPanel implements IRenderPanel , Screen {
 		final Mesh mesh = builder.end();
 		mesh.render( polyProgram , GL20.GL_TRIANGLES);
 		polyProgram.end();
-		mesh.dispose();		
-
-		if ( parameters.isRenderMasses() ) 
-		{
-			builder = new MeshBuilder();
-			builder.begin( LINE_VERTEX_ATTRIBUTES , GL20.GL_TRIANGLES );
-			
-			final float dx = 3;
-			final float dy = 3;
-			
-			final Mass[][] array = system.getMassArray();
-			for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
-			{
-				for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
+		mesh.dispose();			
+	}
+	
+	private void renderSprings(Matrix4 modelViewProjectionMatrix) 
+	{
+		final GL20 gl20 = Gdx.gl20;
+		
+		gl20.glDisable(GL20.GL_DEPTH_TEST);
+		gl20.glEnable(GL11.GL_POLYGON_OFFSET_LINE);
+		gl20.glPolygonOffset(1.0f, 1.0f);            
+        
+		wireProgram.begin();
+		wireProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
+		
+		floatArrayBuilder.begin();
+		shortArrayBuilder.begin();
+		
+		// bind buffers
+		vbo.bind( wireProgram , LINE_VERTEX_ATTRIBUTES );
+		ibo.bind();			
+		
+		int index = 0;
+        for ( Spring s : system.getSprings() ) 
+        {
+            if ( s.doRender ) 
+            {
+				final float r = s.color.getRed()/255.0f;
+				final float g = s.color.getGreen()/255.0f;
+				final float b = s.color.getBlue()/255.0f;
+				
+				floatArrayBuilder.put( s.m1.currentPosition , 1 ); // 4 floats
+				floatArrayBuilder.put( r , g , b ); // 3 floats
+				
+				shortArrayBuilder.put( (short) index );
+				
+				floatArrayBuilder.put( s.m2.currentPosition  , 1 );
+				floatArrayBuilder.put( r , g , b );
+				
+				shortArrayBuilder.put( (short) (index+1) );
+				
+				index += 2;
+				
+				if ( ( index + 2 ) >= 65535 ) 
 				{
-					final Mass m = array[x][y];
+					// populate buffers
+					int size = floatArrayBuilder.end();
 					
-					final float r;
-					final float g;
-					final float b;							
-					if ( m.isSelected() ) 
+					vbo.setVertices( floatArrayBuilder.array , 0 , size );
+					ibo.setIndices( shortArrayBuilder.array , 0 , index );
+					
+					// render
+	    			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
+	    			gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , ibo.getBuffer() );        						
+					
+					// reset 
+					index = 0;
+					floatArrayBuilder.begin();
+					shortArrayBuilder.begin();						
+				}
+            }
+        }
+
+        if ( index != 0) 
+        {
+			// populate buffers
+			final int size = floatArrayBuilder.end();
+			
+			vbo.setVertices( floatArrayBuilder.array , 0 , size );
+			ibo.setIndices( shortArrayBuilder.array , 0 , index );
+			
+			// render
+			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
+			gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , 0 );        						
+        }
+        wireProgram.end();
+        
+		// unbind buffers
+		vbo.unbind( wireProgram , LINE_VERTEX_ATTRIBUTES);
+		ibo.unbind();
+		
+		gl20.glDisable(GL11.GL_POLYGON_OFFSET_LINE);            
+	}
+	
+	private void renderMasses(Matrix4 modelViewProjectionMatrix) 
+	{
+		final GL20 gl20 = Gdx.gl20;
+		
+		final VertexInfo v0 = new VertexInfo();
+		final VertexInfo v1 = new VertexInfo();
+		final VertexInfo v2 = new VertexInfo();
+		final VertexInfo v3 = new VertexInfo();		
+		
+		final MeshBuilder builder = new MeshBuilder();
+		builder.begin( LINE_VERTEX_ATTRIBUTES , GL20.GL_TRIANGLES );
+		
+		final float dx = 3;
+		final float dy = 3;
+		
+		final Mass[][] array = system.getMassArray();
+		for ( int y = 0 ; y < parameters.getGridRowCount() ; y++ ) 
+		{
+			for ( int x = 0 ; x < parameters.getGridColumnCount() ; x++ ) 
+			{
+				final Mass m = array[x][y];
+				
+				final float r;
+				final float g;
+				final float b;							
+				if ( m.isSelected() ) 
+				{
+					r = 1; // red
+					g = 0;
+					b = 0;
+				} 
+				else 
+				{
+					if ( m.isFixed() ) 
 					{
-						r = 1; // red
-						g = 0;
-						b = 0;
+						r=0;
+						g=0;
+						b=1; // blue 
 					} 
 					else 
 					{
-						if ( m.isFixed() ) 
-						{
-							r=0;
-							g=0;
-							b=1; // blue 
-						} 
-						else 
-						{
-							r = m.color.getRed()/255.0f;
-							g = m.color.getGreen()/255.0f;
-							b = m.color.getBlue()/255.0f;
-						}
+						r = m.color.getRed()/255.0f;
+						g = m.color.getGreen()/255.0f;
+						b = m.color.getBlue()/255.0f;
 					}
-						
-					v0.setCol( r ,  g,  b,  1 );
-					v1.setCol( r ,  g,  b,  1 );
-					v2.setCol( r ,  g,  b,  1 );
-					v3.setCol( r ,  g,  b,  1 );							
-						
-					v0.setPos( m.currentPosition.x-dx , m.currentPosition.y+dy , m.currentPosition.z );
-					v1.setPos( m.currentPosition.x-dx , m.currentPosition.y-dy , m.currentPosition.z );
-					v2.setPos( m.currentPosition.x+dx , m.currentPosition.y-dy , m.currentPosition.z );
-					v3.setPos( m.currentPosition.x+dx , m.currentPosition.y+dy , m.currentPosition.z );
-
-					builder.rect( v0 , v1, v2, v3);
 				}
+					
+				v0.setCol( r ,  g,  b,  1 );
+				v1.setCol( r ,  g,  b,  1 );
+				v2.setCol( r ,  g,  b,  1 );
+				v3.setCol( r ,  g,  b,  1 );							
+					
+				v0.setPos( m.currentPosition.x-dx , m.currentPosition.y+dy , m.currentPosition.z );
+				v1.setPos( m.currentPosition.x-dx , m.currentPosition.y-dy , m.currentPosition.z );
+				v2.setPos( m.currentPosition.x+dx , m.currentPosition.y-dy , m.currentPosition.z );
+				v3.setPos( m.currentPosition.x+dx , m.currentPosition.y+dy , m.currentPosition.z );
+
+				builder.rect( v0 , v1, v2, v3);
 			}
-			
-			gl20.glDisable(GL20.GL_DEPTH_TEST);
-			gl20.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
-			gl20.glPolygonOffset(1.0f, 1.0f);
-			   
-			final Mesh mesh2 = builder.end();
-			wireProgram.begin();
-			wireProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
-			
-			mesh2.render( wireProgram , GL20.GL_TRIANGLES );
-			wireProgram.end();
-			mesh2.dispose();
-			
-			gl20.glDisable(GL11.GL_POLYGON_OFFSET_FILL);			
 		}
-
-		// render springs
-        if ( parameters.isRenderSprings() || parameters.isRenderAllSprings() ) 
-        {
-			gl20.glDisable(GL20.GL_DEPTH_TEST);
-			gl20.glEnable(GL11.GL_POLYGON_OFFSET_LINE);
-			gl20.glPolygonOffset(1.0f, 1.0f);            
-            
-			wireProgram.begin();
-			wireProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
-			
-			floatArrayBuilder.begin();
-			shortArrayBuilder.begin();
-			
-			// bind buffers
-			vbo.bind( wireProgram , LINE_VERTEX_ATTRIBUTES );
-			ibo.bind();			
-			
-			int index = 0;
-            for ( Spring s : system.getSprings() ) 
-            {
-                if ( s.doRender ) 
-                {
-					final float r = s.color.getRed()/255.0f;
-					final float g = s.color.getGreen()/255.0f;
-					final float b = s.color.getBlue()/255.0f;
-					
-					floatArrayBuilder.put( s.m1.currentPosition , 1 ); // 4 floats
-					floatArrayBuilder.put( r , g , b ); // 3 floats
-					
-					shortArrayBuilder.put( (short) index );
-					
-					floatArrayBuilder.put( s.m2.currentPosition  , 1 );
-					floatArrayBuilder.put( r , g , b );
-					
-					shortArrayBuilder.put( (short) (index+1) );
-					
-					index += 2;
-					
-					if ( ( index + 2 ) >= 65535 ) 
-					{
-						// populate buffers
-						int size = floatArrayBuilder.end();
-						
-						vbo.setVertices( floatArrayBuilder.array , 0 , size );
-						ibo.setIndices( shortArrayBuilder.array , 0 , index );
-						
-						// render
-		    			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
-		    			gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , ibo.getBuffer() );        						
-						
-						// reset 
-						index = 0;
-						floatArrayBuilder.begin();
-						shortArrayBuilder.begin();						
-					}
-                }
-            }
-
-            if ( index != 0) 
-            {
-				// populate buffers
-				final int size = floatArrayBuilder.end();
-				
-				vbo.setVertices( floatArrayBuilder.array , 0 , size );
-				ibo.setIndices( shortArrayBuilder.array , 0 , index );
-				
-				// render
-    			// Gdx.graphics.getGL20().glDrawElements(GL20.GL_TRIANGLES, indicesToDraw , GL20.GL_UNSIGNED_SHORT , 0);
-    			gl20.glDrawElements(GL20.GL_LINES , index , GL20.GL_UNSIGNED_SHORT , 0 );        						
-            }
-            wireProgram.end();
-            
-			// unbind buffers
-			vbo.unbind( wireProgram , LINE_VERTEX_ATTRIBUTES);
-			ibo.unbind();
-			
-			gl20.glDisable(GL11.GL_POLYGON_OFFSET_LINE);            
-        }
+		
+		gl20.glDisable(GL20.GL_DEPTH_TEST);
+		gl20.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
+		gl20.glPolygonOffset(1.0f, 1.0f);
+		   
+		final Mesh mesh2 = builder.end();
+		wireProgram.begin();
+		wireProgram.setUniformMatrix("u_modelViewProjection" , modelViewProjectionMatrix );
+		
+		mesh2.render( wireProgram , GL20.GL_TRIANGLES );
+		wireProgram.end();
+		mesh2.dispose();
+		
+		gl20.glDisable(GL11.GL_POLYGON_OFFSET_FILL);			
 	}
 
-	private void calculateAveragedNormal(int x,int y,Mass[][] masses,Vector3 result,SimulationParameters parameters)
-	{
-		result.set(0,0,0);
-		
-		final Vector3 position = masses[x][y].currentPosition;
-		
-		final Vector3 v1 = new Vector3();
-		final Vector3 v2 = new Vector3();
-		
-		int count = 0;
-		
-		if ( (x+1) < parameters.getGridColumnCount() && (y+1) < parameters.getGridRowCount() ) {
-			v1.set( masses[x+1][y].currentPosition ).sub(position);
-			v2.set( masses[x][y+1].currentPosition ).sub(position);
-			result.add( v1.crs( v2 ) );
-			count++;
-		}
-		
-		if ( ! AVERAGE_NORMALS ) {
-			result.nor();
-			return;
-		}
-
-		if ( (x+1) < parameters.getGridColumnCount() && (y-1) >= 0 ) {
-			v1.set( masses[x][y-1].currentPosition ).sub(position);			
-			v2.set( masses[x+1][y].currentPosition ).sub(position);
-			result.add( v1.crs( v2 ) );
-			count++;
-		}	
-		
-		if ( (x-1) >= 0 && (y-1) >= 0 ) {
-			v1.set( masses[x-1][y].currentPosition ).sub(position);
-			v2.set( masses[x][y-1].currentPosition ).sub(position);
-			result.add( v1.crs( v2 )  );
-			count++;
-		}	
-		
-		if ( (x-1) >= 0 && (y+1) < parameters.getGridRowCount() ) {
-			v1.set( masses[x][y+1].currentPosition ).sub(position);			
-			v2.set( masses[x-1][y].currentPosition ).sub(position);
-			result.add( v1.crs( v2 ) );
-			count++;
-		}		
-
-		result.scl( 1.0f / (float) count );
-		result.nor();
-	}
-	
 	// ==== libgdx ====
 
 	@Override

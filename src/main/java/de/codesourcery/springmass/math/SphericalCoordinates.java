@@ -1,4 +1,4 @@
-package de.codesourcery.springmass.springmass;
+package de.codesourcery.springmass.math;
 
 import com.badlogic.gdx.math.Vector3;
 

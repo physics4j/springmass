@@ -4,6 +4,8 @@ import java.util.Random;
 
 import com.badlogic.gdx.math.Vector3;
 
+import de.codesourcery.springmass.math.SphericalCoordinates;
+
 public class WindSimulator {
 
 	private WindParameters params;

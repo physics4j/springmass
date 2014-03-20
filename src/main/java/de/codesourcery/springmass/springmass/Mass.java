@@ -26,6 +26,8 @@ public class Mass {
 	public final Vector3 currentPosition=new Vector3();
 	public Vector3 previousPosition=new Vector3();
 	
+	public final Vector3 normal = new Vector3(); 
+	
 	public final float mass;
 	public final Color color;
 	
@@ -52,9 +54,10 @@ public class Mass {
 	
 	public Mass createCopyWithoutSprings() 
 	{
-	    Mass result = new Mass(color,currentPosition,mass);
+	    final Mass result = new Mass(color,currentPosition,mass);
 	    result.flags = flags;
 	    result.previousPosition = new Vector3(previousPosition);
+	    result.normal.set( normal );
 	    return result;
 	}
 	
@@ -110,6 +113,7 @@ public class Mass {
     {
         this.currentPosition.set( mass2.currentPosition );
         this.previousPosition.set( mass2.previousPosition );
+        this.normal.set( mass2.normal );
         this.flags = mass2.flags;
     }
 }
