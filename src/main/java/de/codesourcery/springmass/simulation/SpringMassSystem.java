@@ -30,7 +30,7 @@ public final class SpringMassSystem
 
     protected final Mass[][] massArray;
 
-    public final List<Spring> springs = new ArrayList<>();
+    private final List<Spring> springs = new ArrayList<>();
 
     private final List<Spring> removedSprings = new ArrayList<>();
     
@@ -54,16 +54,19 @@ public final class SpringMassSystem
     protected interface GridIterator extends Iterator<Mass> 
     {
     	/**
-    	 * Returns the mass right of the element returned by the last call to {@link #next()}. 
-    	 * @return mass or <code>null</code> if either <code>next()</code> has never been called
-    	 * or the element returned by <code>next()</code> was the right-most element in a row
+    	 * Returns the mass right of the element returned by the last call to {@link #next()}.
+    	 * 
+    	 *  <p>If the current mass is the last/right-most one in given row, the current mass
+    	 *  is being returned instead of the right neightbor.</-p> 
+    	 * @return mass
     	 */
     	public Mass rightNeighbour();
     	
     	/**
-    	 * Returns the mass below the element returned by the last call to {@link #next()}. 
-    	 * @return mass or <code>null</code> if either <code>next()</code> has never been called
-    	 * or the element returned by <code>next()</code> is in the last row of a slice.
+    	 * Returns the mass below the element returned by the last call to {@link #next()}.
+    	 * 
+    	 *  <p>If the current mass is on the last row, the current mass is being returned instead of the bottom neightbor.</-p>     	 
+    	 * @return mass 
     	 */    	
     	public Mass bottomNeighbour();
     }
@@ -77,7 +80,7 @@ public final class SpringMassSystem
 	 */
     public final class Slice implements Iterable<Mass> {
     	
-    	private final Mass[][] array = massArray;
+    	protected final Mass[][] array = massArray;
     	
     	public final int xStart;
     	public final int yStart;
@@ -85,10 +88,10 @@ public final class SpringMassSystem
     	public final int xEnd;
     	public final int yEnd;
     	
-    	private final boolean fetchNeighbours;
+    	protected final boolean fetchNeighbours;
     	
-    	private final boolean isAtRightEdge; // used to determine whether it's safe to access the first column of the slice to the right of us 
-    	private final boolean isAtBottomEdge; // used to determine whether it's safe to access the first row of the slice to the below us
+    	protected final boolean isAtRightEdge; // used to determine whether it's safe to access the first column of the slice to the right of us 
+    	protected final boolean isAtBottomEdge; // used to determine whether it's safe to access the first row of the slice to the below us
     	
     	/**
     	 * 
@@ -136,13 +139,13 @@ public final class SpringMassSystem
     				{
     					final Mass result = array[x][y];
     					if ( isAtRightEdge ) {
-    						rightNeighbour  = (x+1) < xEnd ? array[x+1][y] : null;
+    						rightNeighbour  = (x+1) < xEnd ? array[x+1][y] : result;
     					} else {
     						rightNeighbour  = array[x+1][y]; // TODO: hackish, another thread my manipulate this Mass instance concurrently...
     					}
     					
     					if ( isAtBottomEdge ) {
-    						bottomNeighbour = (y+1) < yEnd ? array[x][y+1] : null;
+    						bottomNeighbour = (y+1) < yEnd ? array[x][y+1] : result;
     					} else {
     						bottomNeighbour = array[x][y+1];
     					}
@@ -377,12 +380,22 @@ public final class SpringMassSystem
     public void unlock() {
         lock.unlock();
     }
+    
+    private long stepCounter = 0;
 
     public void step() 
     {
         final Vector3 gravity = new Vector3(0,-1,0).scl(params.getGravity());
         final Vector3 zeroGravity = new Vector3(0,0,0);
         
+        final boolean debugPerformance = params.isDebugPerformance();
+        
+        long time = 0;
+        
+        long timeSolve = 0;
+        long timeRemove = 0;
+        long timeApplyForces = 0;
+        long timeCalcNormals = 0;
         lock();
         try 
         {
@@ -392,26 +405,76 @@ public final class SpringMassSystem
             for ( int count = params.getIterationCount() ; count > 0 ; count--) 
             {
                 // solve constraints
+            	if ( debugPerformance ) {
+            		time = System.currentTimeMillis(); 
+            	}
                 solveConstraints();
+                if ( debugPerformance ) {
+                	timeSolve += ( System.currentTimeMillis() - time );
+                }
 
                 // remove springs exceeding the max. length
                 if ( springsCanBreak ) {
+                	if ( debugPerformance ) {
+                		time = System.currentTimeMillis(); 
+                	}                	
                 	removeBrokenSprings(springs);
+                    if ( debugPerformance ) {
+                    	timeRemove += ( System.currentTimeMillis() - time );
+                    }                	
                 }
 
                 // apply spring forces to particles
-                if ( count == 1 ) 
+            	if ( debugPerformance ) {
+            		time = System.currentTimeMillis(); 
+            	}                     
+                if ( count == 1 )
                 {
+                	// calculate normals if wind is enabled , needed for force calculation
+                	if ( params.getWindParameters().isEnabled()  ) 
+                	{
+	                	if ( debugPerformance ) {
+	                		time = System.currentTimeMillis(); 
+	                	}               
+	                    calculateNormals();
+	                    
+	                    if ( debugPerformance ) {
+	                    	timeCalcNormals += ( System.currentTimeMillis() - time );
+	                    } 
+                	}
+                    
                    	applyForces(gravity , params.getWindParameters().isEnabled() );
                 } else {
-                	applyForces( zeroGravity , false ); // only apply gravity once
+                	applyForces( zeroGravity , false ); 
                 }
+                if ( debugPerformance ) {
+                	timeApplyForces += ( System.currentTimeMillis() - time );
+                }                  
             }      
             
-            calculateNormals();
+            // only calculate normals if wind is not enabled, otherwise the
+            // normals have already been calculated when applying the wind forces
+            if ( ! params.getWindParameters().isEnabled() ) 
+            {
+            	// calculate normals
+            	if ( debugPerformance ) {
+            		time = System.currentTimeMillis(); 
+            	}               
+                calculateNormals();
+                
+                if ( debugPerformance ) {
+                	timeCalcNormals += ( System.currentTimeMillis() - time );
+                }             	
+            }
         } 
         finally {
             unlock();
+            if ( debugPerformance ) {
+            	stepCounter++;
+            	if ( (stepCounter % 60 ) == 0 ) {
+            		System.out.println("Time solve: "+timeSolve+" / timeRemove: "+timeRemove+" / timeApplyForces: "+timeApplyForces+" / timeCalcNormals: "+timeCalcNormals);
+            	}
+            }
         }
     }
     
@@ -459,6 +522,7 @@ public final class SpringMassSystem
 		final Mass m = massArray[x][y];
 		
 		final Vector3 normal = m.normal;
+		
 		normal.set(0,0,0);
 		
 		final Vector3 position = m.currentPosition;
@@ -466,65 +530,60 @@ public final class SpringMassSystem
 		final Vector3 v1 = new Vector3();
 		final Vector3 v2 = new Vector3();
 		
-		int count = 0;
-		
 		if ( (x+1) < columnCount && (y+1) < rowCount ) {
 			v1.set( massArray[x+1][y].currentPosition ).sub(position);
 			v2.set( massArray[x][y+1].currentPosition ).sub(position);
 			normal.add( v1.crs( v2 ) );
-			count++;
 		}
 		
 		if ( (x+1) < columnCount && (y-1) >= 0 ) {
 			v1.set( massArray[x][y-1].currentPosition ).sub(position);			
 			v2.set( massArray[x+1][y].currentPosition ).sub(position);
 			normal.add( v1.crs( v2 ) );
-			count++;
 		}	
 		
 		if ( (x-1) >= 0 && (y-1) >= 0 ) {
 			v1.set( massArray[x-1][y].currentPosition ).sub(position);
 			v2.set( massArray[x][y-1].currentPosition ).sub(position);
 			normal.add( v1.crs( v2 )  );
-			count++;
 		}	
 		
 		if ( (x-1) >= 0 && (y+1) < rowCount ) {
 			v1.set( massArray[x][y+1].currentPosition ).sub(position);			
 			v2.set( massArray[x-1][y].currentPosition ).sub(position);
 			normal.add( v1.crs( v2 ) );
-			count++;
 		}		
-
-		normal.scl( 1.0f / (float) count );
 		normal.nor();
 	}    
     
-    private Vector3 calculateWindForce(Mass mass,Mass rightNeighbour,Mass bottomNeighbour, Vector3 normalizedWindForce,Vector3 windForce) 
+    private void addWindForce(Vector3 result , Mass mass,Mass rightNeighbour,Mass bottomNeighbour, Vector3 normalizedWindForce,Vector3 windForce) 
     {
-    	final Vector3 v1 = new Vector3( rightNeighbour.currentPosition );
-    	v1.sub( mass.currentPosition );
+    	// calc. average surface normal by averaging three of the four corners
     	
-    	final Vector3 v2 = new Vector3( bottomNeighbour.currentPosition );
-    	v2.sub( mass.currentPosition );    	
-    	
-    	// calculate vector perpendicular to plane
-    	final Vector3 crossProduct = v1.crs( v2 );
-    	crossProduct.nor();
+    	float x = (mass.normal.x + rightNeighbour.normal.x + bottomNeighbour.normal.x ) / 3.0f;
+    	float y = (mass.normal.y + rightNeighbour.normal.y + bottomNeighbour.normal.y ) / 3.0f;
+    	float z = (mass.normal.z + rightNeighbour.normal.z + bottomNeighbour.normal.z ) / 3.0f;
     	
     	// calculate angle between wind direction and surface normal
-        final float angle = Math.abs( normalizedWindForce.dot( crossProduct ) );
+    	
+    	// dot product
+    	x *= normalizedWindForce.x;
+    	y *= normalizedWindForce.y;
+    	z *= normalizedWindForce.z;
+    	
+        final float angle = Math.abs( x + y + z );
         
         // scale wind force by angle 
-        final Vector3 sumForces = new Vector3( windForce );
-        sumForces.scl( angle );
-        return sumForces; 
+        result.x += (angle * windForce.x);
+        result.y += (angle * windForce.y);
+        result.z += (angle * windForce.z);
 	}
 
 	private void removeBrokenSprings(List<Spring> springs) 
     {
         double maxSpringLengthSquared = params.getMaxSpringLength();
         maxSpringLengthSquared *= maxSpringLengthSquared;
+        
         for ( Iterator<Spring> it = springs.iterator() ; it.hasNext() ; )
         {
             final Spring s = it.next();
@@ -564,7 +623,6 @@ public final class SpringMassSystem
                 };
             }
         };
-
         forEachParallel( springs,  creator );        
     }    
 
@@ -603,7 +661,12 @@ public final class SpringMassSystem
         final Vector3 normalizedWindForce = new Vector3( windForce );
         normalizedWindForce.nor();
         
-        final float minY = -params.getYResolution()*0.2f;
+        final Vector3 sumForces = new Vector3();
+        final Vector3 posDelta = new Vector3();
+        final Vector3 dampening = new Vector3(); 
+        
+        final float minY = -params.getYResolution()*0.4f;
+        
         final GridIterator it = (GridIterator) masses.iterator();
         while ( it.hasNext() )
         {
@@ -612,9 +675,11 @@ public final class SpringMassSystem
                 continue;
             }
 
-            Vector3 sumForces = new Vector3();
-            for ( Spring s : mass.springs ) 
-            {
+            sumForces.set(0,0,0);
+            
+            final int len = mass.springs.size();
+            for ( int i = 0 ; i < len ; i++ ) {
+            	final Spring s= mass.springs.get(i); 
                 if ( s.m1 == mass ) {
                     sumForces.add( s.force );
                 } else {
@@ -626,31 +691,28 @@ public final class SpringMassSystem
             {
             	final Mass rightNeighbour = it.rightNeighbour();
 				final Mass bottomNeighbour = it.bottomNeighbour();
-				if ( rightNeighbour != null & bottomNeighbour != null ) {
-					sumForces.add( calculateWindForce(mass, rightNeighbour , bottomNeighbour , normalizedWindForce, windForce) );
-				}
+				addWindForce(sumForces , mass, rightNeighbour , bottomNeighbour , normalizedWindForce, windForce);
             }
 
             // apply gravity
             sumForces.add( gravity );
 
-            final Vector3 tmp = new Vector3(mass.currentPosition);
-
-            final Vector3 posDelta = new Vector3(mass.currentPosition).sub(mass.previousPosition);
-
-            Vector3 dampening = new Vector3(posDelta).scl( params.getSpringDampening() );
+            posDelta.set(mass.currentPosition).sub(mass.previousPosition);
+            
+            dampening.set(posDelta).scl( params.getSpringDampening() );
             sumForces.sub( dampening );
 
             sumForces.scl( 1.0f / (mass.mass*deltaTSquared) );
             posDelta.add( sumForces );
 
             VectorUtils.clampMagnitudeInPlace( posDelta, params.getMaxParticleSpeed() );
+            
+            mass.previousPosition.set( mass.currentPosition );            
             mass.currentPosition.add( posDelta );
 
             if ( mass.currentPosition.y < minY) {
                 mass.currentPosition.y = minY;
             }
-            mass.previousPosition = tmp;
         }
     }    
 

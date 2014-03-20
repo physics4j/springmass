@@ -32,11 +32,7 @@ public final class Spring {
 
     public final Color color;
     
-    /*  double im1 = 1/m1.mass; 
-     *  double im2 = 1/m2.mass; 
-     *  double ratio = im1 / (im1 + im2);
-     */
-    private final float m1m2Ratio; // 
+    private final float massRatioTimesCoefficient;
     
     public Vector3 force = new Vector3();
 
@@ -78,8 +74,11 @@ public final class Spring {
         this.coefficient = coefficient;
 
         final float im1 = 1/m1.mass; 
-        final float im2 = 1/m2.mass; 
-        this.m1m2Ratio = im1 / (im1 + im2);
+        final float im2 = 1/m2.mass;
+        
+        final float m1m2Ratio = im1 / (im1 + im2);
+        
+        massRatioTimesCoefficient = m1m2Ratio * coefficient;
     }
 
     public double distanceTo(Vector3 c) 
@@ -123,10 +122,25 @@ Here X mean cross product of vectors, and * mean dot product of vectors. This ap
 
     public void calcForce() 
     {
+    	/*
         force.set( m1.currentPosition );
         force.sub( m2.currentPosition );
         
         final float difference = (restLen - force.len()); 
-        force.scl( m1m2Ratio * coefficient * difference );
+        force.scl( m1m2Ratio * coefficient * difference );    	 
+    	 */
+    	
+    	float x = m1.currentPosition.x - m2.currentPosition.x;
+    	float y = m1.currentPosition.y - m2.currentPosition.y;
+    	float z = m1.currentPosition.z - m2.currentPosition.z;
+    	
+    	float len = (float) Math.sqrt( x*x + y*y +z*z );
+    	
+        final float difference = (restLen - len);
+        final float factor =  massRatioTimesCoefficient * difference ;
+        
+        force.x = x * factor;
+        force.y = y * factor;
+        force.z = z * factor;
     }	
 }

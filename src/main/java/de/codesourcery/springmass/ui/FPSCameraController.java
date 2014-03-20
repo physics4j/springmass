@@ -32,6 +32,12 @@ public abstract class FPSCameraController extends InputAdapter
 	public int backwardKey = Keys.S;
 	protected boolean backwardPressed;
 	
+	public int upKey = Keys.Q;
+	protected boolean upPressed;
+	
+	public int downKey = Keys.E;
+	protected boolean downPressed;	
+	
 	/** The camera. */
 	public Camera camera;
 	
@@ -53,7 +59,7 @@ public abstract class FPSCameraController extends InputAdapter
 	
 	public void update() 
 	{
-		if ( forwardPressed || backwardPressed || strafePressed) 
+		if ( forwardPressed || backwardPressed || strafePressed || upPressed || downPressed ) 
 		{
 			final float delta = Gdx.graphics.getDeltaTime();
 			
@@ -71,6 +77,12 @@ public abstract class FPSCameraController extends InputAdapter
 			{
 				updateRequired |= translateCamera(tmpV1.set(camera.direction).scl(-delta * translateUnits));
 			}
+			if ( upPressed ) {
+				updateRequired |= translateCamera(tmpV1.set(0,1,0).scl( delta * translateUnits ) );
+			} else if ( downPressed ) {
+				updateRequired |= translateCamera(tmpV1.set(0,1,0).scl( -delta * translateUnits ) );				
+			}
+			
 			if ( updateRequired ) 
 			{
 				updateCamera();
@@ -107,6 +119,12 @@ public abstract class FPSCameraController extends InputAdapter
 			return false;
 		}
 		
+		if ( keycode == upKey ) {
+			upPressed = true;
+		} else if ( keycode == downKey ) {
+			downPressed = true;
+		}
+		
 		if (keycode == forwardKey) { 
 			forwardPressed = true;
 		} else if (keycode == backwardKey) {
@@ -134,6 +152,11 @@ public abstract class FPSCameraController extends InputAdapter
 		{
 			backwardPressed = false;
 		}
+		if ( keycode == upKey ) {
+			upPressed = false;
+		} else if ( keycode == downKey ) {
+			downPressed = false;
+		}		
 		return false;
 	}
 	

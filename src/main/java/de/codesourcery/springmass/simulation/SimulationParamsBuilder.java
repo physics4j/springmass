@@ -234,8 +234,8 @@ public class SimulationParamsBuilder {
 		xResolution = 2010;
 		yResolution = 2010;
 
-		gridColumnCount = 66;
-		gridRowCount = 66;
+		gridColumnCount = 150;
+		gridRowCount = 150;
 		
 		gravity = 15;
 		maxParticleSpeed = 50;
@@ -259,9 +259,9 @@ public class SimulationParamsBuilder {
 		mouseDragZDepth = -100;
 
 		integrationTimeStep = 50;		
-		forkJoinLoadFactor = 2.0f;	
+		forkJoinLoadFactor = 3.0f;	
 		
-		debugPerformance=false;		
+		debugPerformance=true;		
 		desiredFPS = 60;
 		waitForVSync = true;		
 		
