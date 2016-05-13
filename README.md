@@ -3,7 +3,9 @@
 Simple mass-spring simulation in Java
 -------------------------------------
 
-This project contains a simple mass-spring simulation along with a Swing App that showcases it.
+This project contains a fancy cloth simulation that supports tearing the cloth apart using your mouse, simulated wind,tons of tweakable parameters and this is all nicely packaged into a self-executable Swing App.
+
+![screenshot](https://github.com/toby1984/springmass/blob/master/screenshot.png)
 
 Requirements
 ------------
